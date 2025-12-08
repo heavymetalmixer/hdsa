@@ -1,0 +1,100 @@
+{
+    "tasks": [
+        {
+            "label": "C/C++: RUN DEBUG",
+            "type": "shell",
+            "command": "./build/bin/debug/x64/${workspaceFolderBasename}.exe",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "C/C++: RUN RELWITHDEBINFO",
+            "type": "shell",
+            "command": "./build/bin/relwithdebinfo/x64/${workspaceFolderBasename}.exe",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "C/C++: RUN RELEASE",
+            "type": "shell",
+            "command": "./build/bin/release/x64/${workspaceFolderBasename}.exe",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "type": "cppbuild",
+            "label": "C/C++: CMake CONFIGURE DEBUG",
+            "command": "cmake -S . -G \"Ninja\" -B build -DCMAKE_BUILD_TYPE=Debug",
+            "args": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "detail": "CMake command to generate project files"
+        },
+        {
+            "type": "cppbuild",
+            "label": "C/C++: CMake CONFIGURE RELWITHDEBINFO",
+            "command": "cmake -S . -G \"Ninja\" -B build -DCMAKE_BUILD_TYPE=Relwithdebinfo",
+            "args": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "detail": "CMake command to generate project files"
+        },
+        {
+            "type": "cppbuild",
+            "label": "C/C++: CMake CONFIGURE RELEASE",
+            "command": "cmake -S . -G \"Ninja\" -B build -DCMAKE_BUILD_TYPE=Release",
+            "args": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "detail": "CMake command to generate project files"
+        },
+        {
+            "type": "cppbuild",
+            "label": "C/C++: CMake BUILD",
+            "command": "cmake --build build",
+            "args": [],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "detail": "CMake command to build binaries"
+        }
+    ],
+    "version": "2.0.0"
+}
