@@ -58,7 +58,6 @@ if (!condition)                                             \
         << "  Function: " << loc.function_name() << '\n'    \
         << "  Line: " << loc.line() << '\n'                 \
         << "  Column: " << loc.column() << '\n';            \
-    this->~DynArray();                                      \
     std::abort();                                           \
 }                                                           \
 
@@ -440,8 +439,6 @@ public:
     : m_size { size },
       m_capacity { size }
     {
-        std::cout << "Preallocation about to happen\n";
-
         if (m_size > 0)
         {
             mem_realloc(m_capacity);
@@ -495,6 +492,10 @@ public:
         }
 
         std::cout << "Copy construction\n";
+
+        std::cout << "Size: " << m_capacity << '\n';
+        std::cout << "Capacity: " << m_capacity << '\n';
+        std::cout << ((m_first_ptr == nullptr) ? "The buffer is nullptr\n" : "The buffer has memory assigned to it\n");
     }
 
     DynArray(std::initializer_list<T> other)
@@ -513,6 +514,10 @@ public:
         }
 
         std::cout << "std::initializer_list construction\n";
+
+        std::cout << "Size: " << m_capacity << '\n';
+        std::cout << "Capacity: " << m_capacity << '\n';
+        std::cout << ((m_first_ptr == nullptr) ? "The buffer is nullptr\n" : "The buffer has memory assigned to it\n");
     }
 
     DynArray(DynArray&& other) noexcept
@@ -787,7 +792,7 @@ public:
         BASIC_ASSERT(!is_empty(), "The DynArray is already empty.\n");
 
         m_size--;
-        (m_first_ptr + m_size).~T();
+        m_first_ptr[m_size].~T();
     }
 
     // Makes the DynArray bigger in capacity (memory being used) if the amount of
@@ -810,11 +815,12 @@ public:
         {
             if (m_capacity == 0)
             {
-                std::cout << "The size and capacity of the DynArray are 0, so nothing will be done.\n";
+                std::cout << "The size and capacity of the DynArray are already 0, so nothing will be done.\n";
                 return;
             }
 
             mem_realloc(0);
+            return;
         }
 
         BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
@@ -852,6 +858,8 @@ public:
 
     friend std::ostream& operator <<(std::ostream& out, const DynArray& dyn)
     {
+        BASIC_ASSERT(!dyn.is_empty(), "The DynArray is already empty.\n");
+
         out << "DynArray { ";
 
         for (std::size_t i {}; i < (dyn.size() - 1); i++)

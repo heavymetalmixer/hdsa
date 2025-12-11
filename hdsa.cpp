@@ -47,16 +47,17 @@ int main()
      * Default constructor
      * Constructor with single std::size_t argument
      * Constructor with std::size_t and element arguments
-     * std::initializer_list constructor
      * Copy constructor PARTIALLY
+     * std::initializer_list constructor
+     * Move constructor PARTIALLY
      * Copy assignment PARTIALLY
      * std::initializer_list assignment PARTIALLY
+     * Move assigment PARTIALLY
      * push_back in both versions
      * operator[] with multiple elements
-     * Move constructor PARTIALLY
     */
 
-    hdsa::DynArray<std::size_t> dyn0 {};
+    hdsa::DynArray<std::string> dyn0 {};
 
     if (dyn0.array_ptr() == nullptr)
     {
@@ -64,17 +65,19 @@ int main()
     }
 
     hdsa::DynArray<std::string> dyn(3ull);
-    // dyn[0] = "This is ";
-    // std::cout << sizeof(dyn[0]) << '\n';
-    // dyn[1] = " the ";
-    // dyn[2] = " message.";
+    dyn[0] = "This is ";
+    std::cout << "dyn Size: " << dyn.size() << '\n';
+    dyn[1] = " the ";
+    dyn[2] = " message.";
+    dyn.pop_back();
+    dyn.pop_back();
+    dyn.pop_back();
 
     hdsa::DynArray<std::string> dyn2 { dyn };
     // hdsa::DynArray<std::string> dyn2 { std::move(dyn) };
     // dyn2 = dyn;
 
-    // std::cout << dyn2 << '\n';
-
+    std::cout << dyn2 << '\n';
 
     // auto a { dyn2.cend() - 1 };
     // // a = dyn2.const_begin()[1];
