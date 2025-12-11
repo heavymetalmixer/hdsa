@@ -406,26 +406,26 @@ private:
     }
 
     // It changes old_ptr with nullptr and returns the previous value of old_ptr. It doesn't handle resources
-    T* exchange_with_null(DynArray* old_ptr)
+    T* exchange_with_null(DynArray* old_object)
     {
-        if (old_ptr->m_first_ptr == nullptr) { return old_ptr->m_first_ptr; }
+        if (old_object->m_first_ptr == nullptr) { return old_object->m_first_ptr; }
 
-        T* temp_ptr { &(*(old_ptr->m_first_ptr)) };
-        old_ptr->m_first_ptr = nullptr;
+        T* temp_ptr { &(*(old_object->m_first_ptr)) };
+        old_object->m_first_ptr = nullptr;
         return temp_ptr;
     }
 
-    std::size_t exchange_size(DynArray* ptr)
+    std::size_t exchange_size(DynArray* old_object)
     {
-        std::size_t temp_size { ptr->m_size };
-        ptr->m_size = 0;
+        std::size_t temp_size { old_object->m_size };
+        old_object->m_size = 0;
         return temp_size;
     }
 
-    std::size_t exchange_capacity(DynArray* ptr)
+    std::size_t exchange_capacity(DynArray* old_object)
     {
-        std::size_t temp_capacity { ptr->m_capacity };
-        ptr->m_capacity = 0;
+        std::size_t temp_capacity { old_object->m_capacity };
+        old_object->m_capacity = 0;
         return temp_capacity;
     }
 
@@ -440,6 +440,8 @@ public:
     : m_size { size },
       m_capacity { size }
     {
+        std::cout << "Preallocation about to happen\n";
+
         if (m_size > 0)
         {
             mem_realloc(m_capacity);
@@ -478,14 +480,17 @@ public:
     : m_size { other.m_size },
       m_capacity { other.m_capacity }
     {
-        mem_realloc(m_capacity);
-
-        if (m_size > 0)
+        if (m_capacity > 0)
         {
-            for (std::size_t i {}; i < m_size; i++)
+            mem_realloc(m_capacity);
+
+            if (m_size > 0)
             {
-                T* temp_ptr { m_first_ptr + i };
-                temp_ptr = new (m_first_ptr + i) T(other[i]);
+                for (std::size_t i {}; i < m_size; i++)
+                {
+                    T* temp_ptr { m_first_ptr + i };
+                    temp_ptr = new (m_first_ptr + i) T(other[i]);
+                }
             }
         }
 
@@ -496,10 +501,10 @@ public:
     : m_size { other.size() },
       m_capacity { other.size() }
     {
-        mem_realloc(m_capacity);
-
-        if (m_size > 0)
+        if (m_capacity > 0)
         {
+            mem_realloc(m_capacity);
+
             for (std::size_t i {}; i < m_size; i++)
             {
                 T* temp_ptr { m_first_ptr + i };
@@ -668,14 +673,14 @@ public:
     {
         BASIC_ASSERT(!is_empty(), "The DynArray is empty, you can't get the first element.\n");
 
-        return *m_first_ptr;
+        return m_first_ptr[0];
     }
 
     const T& first() const
     {
         BASIC_ASSERT(!is_empty(), "The DynArray is empty, you can't get the first element.\n");
 
-        return *m_first_ptr;
+        return m_first_ptr[0];
     }
 
     T& last()
