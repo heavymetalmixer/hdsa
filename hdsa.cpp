@@ -54,7 +54,9 @@ int main()
      * std::initializer_list assignment PARTIALLY
      * Move assigment PARTIALLY
      * push_back in both versions
+     * pop_back
      * operator[] with multiple elements
+     * operator<<
     */
 
     hdsa::DynArray<std::string> dyn0 {};

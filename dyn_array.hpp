@@ -603,6 +603,18 @@ public:
         return *this;
     }
 
+    // It calls the destructors for all T objects and resets size back to 0.
+    // It doesn't deallocate the buffer
+    void destroy_all()
+    {
+        for (std::size_t i {}; i < m_size; i++)
+        {
+            m_first_ptr[i].~T();
+        }
+
+        m_size = 0;
+    }
+
     ~DynArray()
     {
         if (m_first_ptr != nullptr)
@@ -614,20 +626,6 @@ public:
         }
 
         std::cout << "Destruction\n";
-    }
-
-    // It calls the destructors for all T objects and resets size back to 0.
-    // It doesn't deallocate the buffer
-    void destroy_all()
-    {
-        BASIC_ASSERT(!is_empty(), "The DynArray is already empty.\n");
-
-        for (std::size_t i {}; i < m_size; i++)
-        {
-            m_first_ptr[i].~T();
-        }
-
-        m_size = 0;
     }
 
     bool is_empty() const noexcept { return (m_size == 0); }
@@ -724,7 +722,11 @@ public:
 
     void push_back(const T& t)
     {
-        BASIC_ASSERT((size() < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be added.\n");
+        if (size() == std::numeric_limits<std::size_t>::max())
+        {
+            std::cout << "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be added.\n";
+            return;
+        }
 
         if (is_full())
         {
@@ -747,7 +749,11 @@ public:
 
     void push_back(T&& t)
     {
-        BASIC_ASSERT((size() < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be added.\n");
+        if (size() == std::numeric_limits<std::size_t>::max())
+        {
+            std::cout << "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be added.\n";
+            return;
+        }
 
         if (is_full())
         {
@@ -789,7 +795,11 @@ public:
 
     void pop_back()
     {
-        BASIC_ASSERT(!is_empty(), "The DynArray is already empty.\n");
+        if (is_empty())
+        {
+            std::cout << "The DynArray is already empty, no elements will be popped out.\n";
+            return;
+        }
 
         m_size--;
         m_first_ptr[m_size].~T();
@@ -799,7 +809,7 @@ public:
     // elements specified is bigger than the current capacity
     void reserve(std::size_t element_amount)
     {
-        if (element_amount <= m_capacity)
+        if (element_amount < m_capacity)
         {
             std::cout << "The amounts of element to reserve is inferior to the current capacity, so nothing will be done.\n";
             return;
@@ -837,7 +847,11 @@ public:
     // It deletes a single element at "position" and replaces it with a default-initialized T object
     void reset_single(std::size_t position)
     {
-        BASIC_ASSERT((position < m_size), "The element to delete is on a position bigger than the size of the DynArray.\n");
+        if (position >= m_size)
+        {
+            std::cout << "The element to delete is on a position bigger than the size of the DynArray.\n";
+            return;
+        }
 
         m_first_ptr[position].~T();
         (m_first_ptr + position) = new (m_first_ptr + position) T();
@@ -846,8 +860,17 @@ public:
     // It deletes all the elements from "beginning" to "end", and replaces them with default-initialized T objects
     void reset_multiple(std::size_t beginning, std::size_t end)
     {
-        BASIC_ASSERT((end < m_size), "The last element to delete is on a position bigger than the size of the DynArray.\n");
-        BASIC_ASSERT((beginning <= end), "The first position is bigger than the second one. Nothing will be done\n");
+        if (end >= m_size)
+        {
+            std::cout << "The last element to delete is on a position bigger than the size of the DynArray.\n";
+            return;
+        }
+
+        if (beginning > end)
+        {
+            std::cout << "The first position is bigger than the second one. Nothing will be done\n";
+            return;
+        }
 
         for (std::size_t i { beginning }; i <= end; i++)
         {
@@ -856,9 +879,47 @@ public:
         }
     }
 
+    // It deletes all the elements in the DynArray, and replaces them with default-initialized T objects
+    void reset_all()
+    {
+        if (m_size > 0)
+        {
+            std::size_t temp_size { m_size };
+            destroy_all();
+            m_size = temp_size;
+        }
+
+        for (std::size_t i {}; i < m_size; i++)
+        {
+            m_first_ptr[i].~T();
+        }
+    }
+
+    // Unlike the other "reset" member functions, this one destroys all the T objects but doesn't replace them with new ones.
+    // Also, it sets size and capacity to 0, and deallocates the buffer
+    void reset_array()
+    {
+        if (m_size > 0)
+        {
+            destroy_all();
+        }
+
+        if (m_first_ptr != nullptr)
+        {
+            ::operator delete(m_first_ptr, m_capacity * sizeof(T));
+            m_first_ptr = nullptr;
+        }
+
+        m_capacity = 0;
+    }
+
     friend std::ostream& operator <<(std::ostream& out, const DynArray& dyn)
     {
-        BASIC_ASSERT(!dyn.is_empty(), "The DynArray is already empty.\n");
+        if (dyn.is_empty())
+        {
+            out << "The DynArray is already empty, cannot print any elements.\n";
+            return out;
+        }
 
         out << "DynArray { ";
 
