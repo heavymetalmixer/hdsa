@@ -67,12 +67,13 @@ int main()
      * Default constructor
      * Constructor with single std::size_t argument
      * Constructor with std::size_t and element arguments
-     * Copy constructor PARTIALLY
+     * Copy constructor
      * std::initializer_list constructor
-     * Move constructor PARTIALLY
+     * Move constructor
      * Copy assignment PARTIALLY
      * std::initializer_list assignment PARTIALLY
      * Move assigment PARTIALLY
+     * reserve
      * push_back in both versions
      * emplace_back
      * pop_back
@@ -80,46 +81,43 @@ int main()
      * operator<<
     */
 
-    hdsa::DynArray<std::string> dyn0 {};
+    hdsa::DynArray<std::string> dyn0 { "Test" };
 
-    if (dyn0.array_ptr() == nullptr)
-    {
-        std::cout << "dyn0's m_first_ptr is NULL\n";
-    }
+    hdsa::DynArray<std::string> dyn {};
+    dyn.emplace_back("Test");
+    // hdsa::DynArray<std::string> dyn(3ull, "");
+    // dyn[0] = "This is ";
+    // dyn[1] = " the ";
+    // dyn[2] = " message.";
+    // dyn.pop_back();
+    // dyn.pop_back();
+    // dyn.pop_back();
 
-    hdsa::DynArray<std::string> dyn(3ull);
-    dyn[0] = "This is ";
-    std::cout << "dyn Size: " << dyn.size() << '\n';
-    dyn[1] = " the ";
-    dyn[2] = " message.";
-    dyn.pop_back();
-    dyn.pop_back();
-    dyn.pop_back();
-
-    hdsa::DynArray<std::string> dyn2 { dyn };
-    // hdsa::DynArray<std::string> dyn2 { std::move(dyn) };
+    // hdsa::DynArray<std::string> dyn2 { dyn };
+    hdsa::DynArray<std::string> dyn2 { std::move(dyn) };
     // dyn2 = dyn;
 
-    //std::cout << dyn2 << '\n';
+    std::cout << dyn2 << '\n';
 
-    int a { 10 };
-    hdsa::DynArray<Vec3> v31 { Vec3(4, 5, 6, a) } ;
+    if (dyn.size() == 0) { std::cout << "dyn's size is 0\n"; }
+    else { std::cout << "dyn's size is bigger than 0: " << dyn.size() << '\n'; }
 
-    hdsa::DynArray<Vec3> v32{};
-    v32.emplace_back();
-    v32.emplace_back();
-    std::cout << v32 << '\n';
+    if (dyn.capacity() == 0) { std::cout << "dyn's capacity is 0\n"; }
+    else { std::cout << "dyn's capacity is bigger than 0: " << dyn.capacity() << '\n'; }
 
-    // auto a { dyn2.cend() - 1 };
-    // // a = dyn2.const_begin()[1];
+    if (dyn.array_ptr() == 0) { std::cout << "dyn's buffer is null\n\n"; }
+    else { std::cout << "dyn's buffer has memory: " << dyn.array_ptr() << "\n\n"; }
 
-    // std::cout << "The const iterator is at: " << a.data() << '\n';
-    // // a++;
-    // a = a - 2;
-    // std::cout << "The const iterator now is: " << *a << '\n';
-    // std::cout << a[0] << '\n';
 
-    // hdsa::DynArray<std::string> dyn3(4ull, "Word");
+
+    if (dyn2.size() == 0) { std::cout << "dyn2's size is 0\n"; }
+    else { std::cout << "dyn2's size is bigger than 0: " << dyn2.size() << '\n'; }
+
+    if (dyn2.capacity() == 0) { std::cout << "dyn2's capacity is 0\n"; }
+    else { std::cout << "dyn2's capacity is bigger than 0: " << dyn2.capacity() << '\n'; }
+
+    if (dyn2.array_ptr() == 0) { std::cout << "dyn2's buffer is null\n\n"; }
+    else { std::cout << "dyn2's buffer has memory: " << dyn2.array_ptr() << "\n\n"; }
 
     return 0;
 }

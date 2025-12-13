@@ -457,9 +457,7 @@ public:
 
             for (std::size_t i {}; i < m_size; i++)
             {
-                T* temp_ptr { m_first_ptr + i };
-                temp_ptr = new (m_first_ptr + i) T(element);
-                std::cout << "Element " << i << ": " << element <<'\n';
+                new (m_first_ptr + i) T(element);
             }
         }
 
@@ -715,6 +713,20 @@ public:
         return const_iterator(m_first_ptr + m_size);
     }
 
+    // Increases the buffer and capacity
+    void reserve(std::size_t element_amount)
+    {
+        BASIC_ASSERT((capacity() < std::numeric_limits<std::size_t>::max()), "The DynArray has a capacity that matches the limit of std::size_t, so it cannot grow any further.\n");
+
+        if (element_amount <= m_capacity)
+        {
+            std::cout << "The amounts of element to reserve is inferior or equal to the current capacity, so reserve() will do nothing.\n";
+            return;
+        }
+
+        mem_realloc(element_amount);
+    }
+
     void push_back(const T& t)
     {
         if (size() == std::numeric_limits<std::size_t>::max())
@@ -803,19 +815,6 @@ public:
 
         m_size--;
         m_first_ptr[m_size].~T();
-    }
-
-    // Makes the DynArray bigger in capacity (memory being used) if the amount of
-    // elements specified is bigger than the current capacity
-    void reserve(std::size_t element_amount)
-    {
-        if (element_amount <= m_capacity)
-        {
-            std::cout << "The amounts of element to reserve is inferior or equal to the current capacity, so reserve() will do nothing.\n";
-            return;
-        }
-
-        mem_realloc(element_amount);
     }
 
     // Makes a reallocation to use a new smaller buffer just big enough to fit all the existing elements
@@ -917,7 +916,7 @@ public:
     {
         if (dyn.is_empty())
         {
-            out << "The DynArray is already empty, cannot print any elements.\n";
+            out << "The DynArray is empty, cannot print any elements.\n";
             return out;
         }
 
