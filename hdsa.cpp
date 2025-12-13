@@ -14,15 +14,37 @@ struct Vec3
         mem = new int(10);
     }
 
+    Vec3(int xa, int ya, int za, int mema)
+    : x { xa },
+      y { ya },
+      z { za }
+    {
+        mem = new int(mema);
+    }
+
     Vec3(const Vec3& other)
     : x { other.x },
       y { other.y },
       z { other.z }
     {
         mem = new int(*other.mem);
+        std::cout << "Vec3 Copy Construction.\n";
     }
 
-    Vec3(Vec3&& other) noexcept = default;
+    Vec3(Vec3&& other) noexcept
+    : x { other.x },
+      y { other.y },
+      z { other.z },
+      mem { other.mem }
+    {
+        other.x = 1;
+        other.y = 2;
+        other.z = 3;
+        other.mem = nullptr;
+
+        std::cout << "Vec3 Move Construction.\n";
+    }
+
     Vec3& operator=(const Vec3& other) = default;
     Vec3& operator=(Vec3&& other) noexcept = default;
 
@@ -34,7 +56,7 @@ struct Vec3
 
     friend std::ostream& operator <<(std::ostream& out, const Vec3& v3)
     {
-        out << "Vec3 { " << v3.x << ", " << v3.y << ", " << v3.z << ", " << *(v3.mem) << " }";
+        out << "Vec3 { " << v3.x << ", " << v3.y << ", " << v3.z << " }";
         return out;
     }
 };
@@ -79,7 +101,12 @@ int main()
     // hdsa::DynArray<std::string> dyn2 { std::move(dyn) };
     // dyn2 = dyn;
 
-    std::cout << dyn2 << '\n';
+    //std::cout << dyn2 << '\n';
+
+    int a { 10 };
+    hdsa::DynArray<Vec3> v31 { Vec3(4, 5, 6, a) } ;
+
+    hdsa::DynArray<Vec3> v32{ std::move(v31[0]) };
 
     // auto a { dyn2.cend() - 1 };
     // // a = dyn2.const_begin()[1];

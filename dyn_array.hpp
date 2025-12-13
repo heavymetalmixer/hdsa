@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <limits>
+#include <type_traits>
 #include <iterator>
 #include <memory>
 #include <new>
@@ -314,7 +315,7 @@ private:
         {
             if (element_amount == 0)
             {
-                std::cout << "The amounts of element to get memory for is 0 and there's no allocated buffer, so nothing will be done.\n";
+                std::cout << "The amounts of element to get memory for is 0 and there's no allocated buffer, so the buffer won't change.\n";
                 return;
             }
 
@@ -342,40 +343,33 @@ private:
             return;
         }
 
+        std::size_t old_capacity { m_capacity };
+        m_capacity = element_amount;
+        T* new_buffer { static_cast<T*>(::operator new(m_capacity * sizeof(T))) };
+
         // If size is bigger than element_amount the remaining T objects will be discarded
         if (m_size > element_amount)
         {
             std::cout << "The size is bigger than amount of elements for reallocation. The remaining T objects will be discarded.\n";
 
-            std::size_t old_capacity { m_capacity };
-            m_capacity = element_amount;
-            T* new_buffer { static_cast<T*>(::operator new(m_capacity * sizeof(T))) };
-
             for (std::size_t i {}; i < element_amount; i++)
             {
-                new (&new_buffer[i]) T(std::move(m_first_ptr[i]));
+                new (&new_buffer[i]) T(std::move_if_noexcept(m_first_ptr[i]));
             }
 
             for (std::size_t i {}; i < m_size; i++)
             {
                 m_first_ptr[i].~T();
             }
-
-            ::operator delete(m_first_ptr, old_capacity * sizeof(T));
-            m_first_ptr = new_buffer;
         }
+        // This last case is for when the DynArray is growing to a bigger buffer and capacity
         else
         {
-            // This last case is for when the DynArray is growing to a bigger buffer and capacity
-            std::size_t old_capacity { m_capacity };
-            m_capacity = element_amount;
-            T* new_buffer { static_cast<T*>(::operator new(m_capacity * sizeof(T))) };
-
             if (m_size > 0)
             {
                 for (std::size_t i {}; i < m_size; i++)
                 {
-                    new_buffer[i] = std::move(m_first_ptr[i]);
+                    new (&new_buffer[i]) T(std::move_if_noexcept(m_first_ptr[i]));
                 }
 
                 for (std::size_t i {}; i < m_size; i++)
@@ -383,10 +377,10 @@ private:
                     m_first_ptr[i].~T();
                 }
             }
-
-            ::operator delete(m_first_ptr, old_capacity * sizeof(T));
-            m_first_ptr = new_buffer;
         }
+
+        ::operator delete(m_first_ptr, old_capacity * sizeof(T));
+        m_first_ptr = new_buffer;
     }
 
     // It increases the memory used by a factor of 2 for when the DynArray is full, or
@@ -641,8 +635,12 @@ public:
 
     std::size_t capacity() const noexcept { return m_capacity; }
 
+    // Returns a pointer to the first element in the array, which is the same of the buffer
+    // Very risky to use
     T* array_ptr() noexcept { return m_first_ptr; }
 
+    // Returns a pointer to the first element in the array, which is the same of the buffer
+    // Very risky to use
     const T* array_ptr() const noexcept { return m_first_ptr; }
 
     T& operator[](std::size_t position)
@@ -764,13 +762,13 @@ public:
         if (m_first_ptr == nullptr)
         {
             mem_realloc(1);
-            m_first_ptr = new (m_first_ptr) T(std::move(t));
+            m_first_ptr = new (m_first_ptr) T(std::move_if_noexcept(t));
             m_size++;
             return;
         }
 
         T* temp_ptr { m_first_ptr + m_size };
-        temp_ptr = new (m_first_ptr + m_size) T(std::move(t));
+        temp_ptr = new (m_first_ptr + m_size) T(std::move_if_noexcept(t));
         m_size++;
     }
 
@@ -809,9 +807,9 @@ public:
     // elements specified is bigger than the current capacity
     void reserve(std::size_t element_amount)
     {
-        if (element_amount < m_capacity)
+        if (element_amount <= m_capacity)
         {
-            std::cout << "The amounts of element to reserve is inferior to the current capacity, so nothing will be done.\n";
+            std::cout << "The amounts of element to reserve is inferior or equal to the current capacity, so reserve() will do nothing.\n";
             return;
         }
 
