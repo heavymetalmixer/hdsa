@@ -439,8 +439,7 @@ public:
 
             for (std::size_t i {}; i < m_size; i++)
             {
-                T* temp_ptr { m_first_ptr + i };
-                temp_ptr = new (m_first_ptr + i) T();
+                new (m_first_ptr + i) T();
             }
         }
 
@@ -479,8 +478,7 @@ public:
             {
                 for (std::size_t i {}; i < m_size; i++)
                 {
-                    T* temp_ptr { m_first_ptr + i };
-                    temp_ptr = new (m_first_ptr + i) T(other[i]);
+                    new (m_first_ptr + i) T(other[i]);
                 }
             }
         }
@@ -502,8 +500,7 @@ public:
 
             for (std::size_t i {}; i < m_size; i++)
             {
-                T* temp_ptr { m_first_ptr + i };
-                temp_ptr = new (m_first_ptr + i) T(other.begin()[i]);
+                new (m_first_ptr + i) T(other.begin()[i]);
             }
         }
 
@@ -726,22 +723,21 @@ public:
             return;
         }
 
+        if (m_first_ptr == nullptr)
+        {
+            mem_realloc(1);
+            new (m_first_ptr) T(t);
+            m_size++;
+            return;
+        }
+
         if (is_full())
         {
             std::cout << "The DynArray is full. Growing it up.\n";
             grow_by_2();
         }
 
-        if (m_first_ptr == nullptr)
-        {
-            mem_realloc(1);
-            m_first_ptr = new (m_first_ptr) T(t);
-            m_size++;
-            return;
-        }
-
-        T* temp_ptr { m_first_ptr + m_size };
-        temp_ptr = new (m_first_ptr + m_size) T(t);
+        new (m_first_ptr + m_size) T(t);
         m_size++;
     }
 
@@ -753,22 +749,21 @@ public:
             return;
         }
 
+        if (m_first_ptr == nullptr)
+        {
+            mem_realloc(1);
+            new (m_first_ptr) T(std::move_if_noexcept(t));
+            m_size++;
+            return;
+        }
+
         if (is_full())
         {
             std::cout << "The DynArray is full. Growing it up.\n";
             grow_by_2();
         }
 
-        if (m_first_ptr == nullptr)
-        {
-            mem_realloc(1);
-            m_first_ptr = new (m_first_ptr) T(std::move_if_noexcept(t));
-            m_size++;
-            return;
-        }
-
-        T* temp_ptr { m_first_ptr + m_size };
-        temp_ptr = new (m_first_ptr + m_size) T(std::move_if_noexcept(t));
+        new (m_first_ptr + m_size) T(std::move_if_noexcept(t));
         m_size++;
     }
 
@@ -779,6 +774,11 @@ public:
     {
         BASIC_ASSERT((size() < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be added.\n");
 
+        if (m_first_ptr == nullptr)
+        {
+            mem_realloc(1);
+        }
+
         if (is_full())
         {
             std::cout << "The DynArray is full. Growing it up.\n";
@@ -787,6 +787,8 @@ public:
 
         new (m_first_ptr + m_size) T(std::forward<Args>(args)...);
         m_size++;
+
+        std::cout << "Pushing one element with in-place construction.\n";
 
         return m_first_ptr[m_size - 1];
     }

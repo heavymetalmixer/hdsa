@@ -7,27 +7,25 @@ struct Vec3
     int x { 1 };
     int y { 2 };
     int z { 3 };
-    int* mem = nullptr;
+    int* mem { nullptr };
 
     Vec3()
-    {
-        mem = new int(10);
-    }
+    : mem { new int(10) }
+    {}
 
     Vec3(int xa, int ya, int za, int mema)
     : x { xa },
       y { ya },
-      z { za }
-    {
-        mem = new int(mema);
-    }
+      z { za },
+      mem { new int(mema) }
+    {}
 
     Vec3(const Vec3& other)
     : x { other.x },
       y { other.y },
-      z { other.z }
+      z { other.z },
+      mem { new int(*other.mem) }
     {
-        mem = new int(*other.mem);
         std::cout << "Vec3 Copy Construction.\n";
     }
 
@@ -56,7 +54,7 @@ struct Vec3
 
     friend std::ostream& operator <<(std::ostream& out, const Vec3& v3)
     {
-        out << "Vec3 { " << v3.x << ", " << v3.y << ", " << v3.z << " }";
+        out << "Vec3 { " << v3.x << ", " << v3.y << ", " << v3.z << ", " << *v3.mem << " }";
         return out;
     }
 };
@@ -76,6 +74,7 @@ int main()
      * std::initializer_list assignment PARTIALLY
      * Move assigment PARTIALLY
      * push_back in both versions
+     * emplace_back
      * pop_back
      * operator[] with multiple elements
      * operator<<
@@ -106,7 +105,10 @@ int main()
     int a { 10 };
     hdsa::DynArray<Vec3> v31 { Vec3(4, 5, 6, a) } ;
 
-    hdsa::DynArray<Vec3> v32{ std::move(v31[0]) };
+    hdsa::DynArray<Vec3> v32{};
+    v32.emplace_back();
+    v32.emplace_back();
+    std::cout << v32 << '\n';
 
     // auto a { dyn2.cend() - 1 };
     // // a = dyn2.const_begin()[1];
