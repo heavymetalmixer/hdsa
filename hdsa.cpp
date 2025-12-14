@@ -70,9 +70,9 @@ int main()
      * Copy constructor
      * std::initializer_list constructor
      * Move constructor
-     * Copy assignment PARTIALLY
-     * std::initializer_list assignment PARTIALLY
-     * Move assigment PARTIALLY
+     * Copy assignment
+     * std::initializer_list assignment
+     * Move assigment
      * reserve
      * push_back in both versions
      * emplace_back
@@ -93,11 +93,12 @@ int main()
     // dyn.pop_back();
     // dyn.pop_back();
 
+    hdsa::DynArray<std::string> dyn2 {};
     // hdsa::DynArray<std::string> dyn2 { dyn };
-    hdsa::DynArray<std::string> dyn2 { std::move(dyn) };
-    // dyn2 = dyn;
+    // hdsa::DynArray<std::string> dyn2 { std::move(dyn) };
+    dyn2 = std::move(dyn);
 
-    std::cout << dyn2 << '\n';
+    // std::cout << dyn2 << '\n';
 
     if (dyn.size() == 0) { std::cout << "dyn's size is 0\n"; }
     else { std::cout << "dyn's size is bigger than 0: " << dyn.size() << '\n'; }

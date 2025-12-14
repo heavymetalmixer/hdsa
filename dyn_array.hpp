@@ -529,7 +529,11 @@ public:
 
         if (m_capacity < other.m_capacity)
         {
-            ::operator delete(m_first_ptr, m_capacity * sizeof(T));
+            if (m_first_ptr != nullptr)
+            {
+                ::operator delete(m_first_ptr, m_capacity * sizeof(T));
+            }
+
             m_capacity = other.m_capacity;
             m_first_ptr = static_cast<T*>(::operator new(m_capacity * sizeof(T)));
         }
@@ -538,8 +542,7 @@ public:
         {
             for (std::size_t i {}; i < m_size; i++)
             {
-                T* temp_ptr { m_first_ptr + i };
-                temp_ptr = new (m_first_ptr + i) T(other[i]);
+                new (m_first_ptr + i) T(other[i]);
             }
         }
 
@@ -559,7 +562,11 @@ public:
 
         if (m_capacity < other.size())
         {
-            ::operator delete(m_first_ptr, m_capacity * sizeof(T));
+            if (m_first_ptr != nullptr)
+            {
+                ::operator delete(m_first_ptr, m_capacity * sizeof(T));
+            }
+
             m_capacity = other.size();
             m_first_ptr = static_cast<T*>(::operator new(m_capacity * sizeof(T)));
         }
@@ -568,8 +575,7 @@ public:
         {
             for (std::size_t i {}; i < m_size; i++)
             {
-                T* temp_ptr { m_first_ptr + i };
-                temp_ptr = new (m_first_ptr + i) T(other.begin()[i]);
+                new (m_first_ptr + i) T(other.begin()[i]);
             }
         }
 
@@ -579,14 +585,24 @@ public:
 
     DynArray& operator=(DynArray&& other) noexcept
     {
-        m_first_ptr = other.m_first_ptr;
-        other.m_first_ptr = nullptr;
+        for (std::size_t i {}; i < m_size; i++)
+        {
+            m_first_ptr[i].~T();
+        }
 
         m_size = other.m_size;
         other.m_size = 0;
 
+        if (m_first_ptr != nullptr)
+        {
+            ::operator delete(m_first_ptr, m_capacity * sizeof(T));
+        }
+
         m_capacity = other.m_capacity;
         other.m_capacity = 0;
+
+        m_first_ptr = other.m_first_ptr;
+        other.m_first_ptr = nullptr;
 
         std::cout << "Move assignment\n";
         return *this;
