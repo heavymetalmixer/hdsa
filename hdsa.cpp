@@ -77,28 +77,28 @@ int main()
      * push_back in both versions
      * emplace_back
      * pop_back
-     * operator[] with multiple elements
+     * array_ptr in both versions
+     * operator[] with multiple elements in both versions
+     * at_unchecked in both versions
+     * first and last in both versions
+     * shrink_to_size
      * operator<<
     */
 
-    hdsa::DynArray<std::string> dyn0 { "Test" };
+    // hdsa::DynArray<std::string> dyn {};
+    // dyn.emplace_back("Test");
+    hdsa::DynArray<std::string> dyn(3ull);
+    dyn[0] = "This is ";
+    dyn[1] = " the ";
+    dyn[2] = " message.";
 
-    hdsa::DynArray<std::string> dyn {};
-    dyn.emplace_back("Test");
-    // hdsa::DynArray<std::string> dyn(3ull, "");
-    // dyn[0] = "This is ";
-    // dyn[1] = " the ";
-    // dyn[2] = " message.";
-    // dyn.pop_back();
     // dyn.pop_back();
     // dyn.pop_back();
 
-    hdsa::DynArray<std::string> dyn2 {};
-    // hdsa::DynArray<std::string> dyn2 { dyn };
-    // hdsa::DynArray<std::string> dyn2 { std::move(dyn) };
-    dyn2 = std::move(dyn);
 
-    // std::cout << dyn2 << '\n';
+    // dyn.shrink_to_size();
+    dyn.reset_all();
+    std::cout << dyn << '\n';
 
     if (dyn.size() == 0) { std::cout << "dyn's size is 0\n"; }
     else { std::cout << "dyn's size is bigger than 0: " << dyn.size() << '\n'; }
@@ -109,16 +109,19 @@ int main()
     if (dyn.array_ptr() == 0) { std::cout << "dyn's buffer is null\n\n"; }
     else { std::cout << "dyn's buffer has memory: " << dyn.array_ptr() << "\n\n"; }
 
+    // std::vector<std::string> vec(5ull);
+    // vec[0] = "This is ";
+    // vec[1] = " the ";
+    // vec[2] = " message.";
 
+    // if (vec.size() == 0) { std::cout << "vec's size is 0\n"; }
+    // else { std::cout << "vec's size is bigger than 0: " << vec.size() << '\n'; }
 
-    if (dyn2.size() == 0) { std::cout << "dyn2's size is 0\n"; }
-    else { std::cout << "dyn2's size is bigger than 0: " << dyn2.size() << '\n'; }
+    // if (vec.capacity() == 0) { std::cout << "vec's capacity is 0\n"; }
+    // else { std::cout << "vec's capacity is bigger than 0: " << vec.capacity() << '\n'; }
 
-    if (dyn2.capacity() == 0) { std::cout << "dyn2's capacity is 0\n"; }
-    else { std::cout << "dyn2's capacity is bigger than 0: " << dyn2.capacity() << '\n'; }
-
-    if (dyn2.array_ptr() == 0) { std::cout << "dyn2's buffer is null\n\n"; }
-    else { std::cout << "dyn2's buffer has memory: " << dyn2.array_ptr() << "\n\n"; }
+    // if (vec.data() == 0) { std::cout << "vec's buffer is null\n\n"; }
+    // else { std::cout << "vec's buffer has memory: " << vec.data() << "\n\n"; }
 
     return 0;
 }

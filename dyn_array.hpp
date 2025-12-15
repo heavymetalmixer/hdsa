@@ -639,7 +639,7 @@ public:
     {
         BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
 
-        return (m_size > 0 && m_size == m_capacity);
+        return ((m_size > 0) && (m_size == m_capacity));
     }
 
     std::size_t size() const noexcept { return m_size; }
@@ -836,19 +836,19 @@ public:
     // Makes a reallocation to use a new smaller buffer just big enough to fit all the existing elements
     void shrink_to_size()
     {
-        if (m_size == 0)
-        {
-            if (m_capacity == 0)
-            {
-                std::cout << "The size and capacity of the DynArray are already 0, so nothing will be done.\n";
-                return;
-            }
+        BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
 
-            mem_realloc(0);
+        if (m_first_ptr == nullptr)
+        {
+            std::cout << "There's no buffer, so the DynArray can't be shrinked.\n";
             return;
         }
 
-        BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
+        if (m_size == 0)
+        {
+            mem_realloc(0);
+            return;
+        }
 
         if (is_full())
         {
@@ -860,8 +860,17 @@ public:
     }
 
     // It deletes a single element at "position" and replaces it with a default-initialized T object
+    // position can go from 0 to (size() - 1)
     void reset_single(std::size_t position)
     {
+        BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
+
+        if (m_first_ptr == nullptr)
+        {
+            std::cout << "There's no buffer, so no elements can be reset.\n";
+            return;
+        }
+
         if (position >= m_size)
         {
             std::cout << "The element to delete is on a position bigger than the size of the DynArray.\n";
@@ -869,12 +878,21 @@ public:
         }
 
         m_first_ptr[position].~T();
-        (m_first_ptr + position) = new (m_first_ptr + position) T();
+        new (m_first_ptr + position) T();
     }
 
     // It deletes all the elements from "beginning" to "end", and replaces them with default-initialized T objects
+    // The range for both parameters can go from 0 to (size() - 1), and using the same number for both resets only one T object
     void reset_multiple(std::size_t beginning, std::size_t end)
     {
+        BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
+
+        if (m_first_ptr == nullptr)
+        {
+            std::cout << "There's no buffer, so no elements can be reset.\n";
+            return;
+        }
+
         if (end >= m_size)
         {
             std::cout << "The last element to delete is on a position bigger than the size of the DynArray.\n";
@@ -890,23 +908,35 @@ public:
         for (std::size_t i { beginning }; i <= end; i++)
         {
             m_first_ptr[i].~T();
-            (m_first_ptr + i) = new (m_first_ptr + i) T();
+            new (m_first_ptr + i) T();
         }
     }
 
     // It deletes all the elements in the DynArray, and replaces them with default-initialized T objects
     void reset_all()
     {
-        if (m_size > 0)
+        BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
+
+        if (m_first_ptr == nullptr)
         {
-            std::size_t temp_size { m_size };
-            destroy_all();
-            m_size = temp_size;
+            std::cout << "There's no buffer, so no elements can be reset.\n";
+            return;
         }
+
+        if (m_size == 0)
+        {
+            std::cout << "The DynArray is empty, no elements can be reset.\n";
+            return;
+        }
+
+        std::size_t temp_size { m_size };
+        destroy_all();
+        m_size = temp_size;
 
         for (std::size_t i {}; i < m_size; i++)
         {
             m_first_ptr[i].~T();
+            new (m_first_ptr + i) T();
         }
     }
 
@@ -914,6 +944,8 @@ public:
     // Also, it sets size and capacity to 0, and deallocates the buffer
     void reset_array()
     {
+        BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
+
         if (m_size > 0)
         {
             destroy_all();
