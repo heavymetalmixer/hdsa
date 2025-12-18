@@ -91,7 +91,7 @@ private:
     std::size_t m_capacity {};
 
 
-    struct DynArrayIterator final
+    struct Iterator final
     {
         using difference_type = std::ptrdiff_t;
 
@@ -107,7 +107,7 @@ private:
 
         pointer m_ptr { nullptr };
 
-        DynArrayIterator(pointer ptr)
+        Iterator(pointer ptr)
         : m_ptr { ptr } {}
 
         pointer operator->()
@@ -130,109 +130,109 @@ private:
             return m_ptr[position];
         }
 
-        DynArrayIterator& operator++()
+        Iterator& operator++()
         {
             ++m_ptr;
             return *this;
         }
 
-        DynArrayIterator operator++(int)
+        Iterator operator++(int)
         {
-            DynArrayIterator iterator { *this };
+            Iterator iterator { *this };
             ++(*this);
             return iterator;
         }
 
-        DynArrayIterator& operator--()
+        Iterator& operator--()
         {
             --m_ptr;
             return *this;
         }
 
-        DynArrayIterator operator--(int)
+        Iterator operator--(int)
         {
-            DynArrayIterator iterator { *this };
+            Iterator iterator { *this };
             --(*this);
             return iterator;
         }
 
-        DynArrayIterator& operator+=(int x)
+        Iterator& operator+=(int x)
         {
             m_ptr += x;
             return *this;
         }
 
-        DynArrayIterator& operator-=(int x)
+        Iterator& operator-=(int x)
         {
             m_ptr -= x;
             return *this;
         }
 
-        DynArrayIterator operator+(const difference_type x) const
+        Iterator operator+(const difference_type x) const
         {
             return m_ptr + x;
         }
 
-        friend DynArrayIterator operator+(const difference_type x, const DynArrayIterator& other)
+        friend Iterator operator+(const difference_type x, const Iterator& other)
         {
             return other + x;
         }
 
-        DynArrayIterator operator-(const difference_type x) const
+        Iterator operator-(const difference_type x) const
         {
             return m_ptr - x;
         }
 
-        friend DynArrayIterator operator-(const difference_type x, const DynArrayIterator& other)
+        friend Iterator operator-(const difference_type x, const Iterator& other)
         {
             return other - x;
         }
 
-        difference_type operator-(const DynArrayIterator& other) const
+        difference_type operator-(const Iterator& other) const
         {
             return m_ptr - other.m_ptr;
         }
 
-        friend bool operator==(const DynArrayIterator& a, const DynArrayIterator& other)
+        friend bool operator==(const Iterator& a, const Iterator& other)
         {
             return (a.m_ptr == other.m_ptr);
         }
 
-        friend bool operator!=(const DynArrayIterator& a, const DynArrayIterator& other)
+        friend bool operator!=(const Iterator& a, const Iterator& other)
         {
             return (a.m_ptr != other.m_ptr);
         }
 
-        friend bool operator<(const DynArrayIterator& a, const DynArrayIterator& other)
+        friend bool operator<(const Iterator& a, const Iterator& other)
         {
             return (a.m_ptr < other.m_ptr);
         }
 
-        friend bool operator>(const DynArrayIterator& a, const DynArrayIterator& other)
+        friend bool operator>(const Iterator& a, const Iterator& other)
         {
             return (a.m_ptr > other.m_ptr);
         }
 
-        friend bool operator<=(const DynArrayIterator& a, const DynArrayIterator& other)
+        friend bool operator<=(const Iterator& a, const Iterator& other)
         {
             return (a.m_ptr <= other.m_ptr);
         }
 
-        friend bool operator>=(const DynArrayIterator& a, const DynArrayIterator& other)
+        friend bool operator>=(const Iterator& a, const Iterator& other)
         {
             return (a.m_ptr >= other.m_ptr);
         }
 
         auto operator<=>(const DynArrayIterator& other) const = default;
 
-        friend std::ostream& operator<<(std::ostream& out, const DynArrayIterator& it)
+        friend std::ostream& operator<<(std::ostream& out, const Iterator& it)
         {
             out << it.m_ptr;
             return out;
         }
     };
 
-    struct DynArrayConstIterator final
+    struct ConstIterator final
     {
         using difference_type = std::ptrdiff_t;
 
@@ -248,7 +248,7 @@ private:
 
         pointer m_ptr { nullptr };
 
-        DynArrayConstIterator(pointer ptr)
+        ConstIterator(pointer ptr)
         : m_ptr { ptr } {}
 
         pointer operator->()
@@ -271,109 +271,109 @@ private:
             return m_ptr[position];
         }
 
-        DynArrayConstIterator& operator++()
+        ConstIterator& operator++()
         {
             ++m_ptr;
             return *this;
         }
 
-        DynArrayConstIterator operator++(int)
+        ConstIterator operator++(int)
         {
-            DynArrayConstIterator iterator { *this };
+            ConstIterator iterator { *this };
             ++(*this);
             return iterator;
         }
 
-        DynArrayConstIterator& operator--()
+        ConstIterator& operator--()
         {
             --m_ptr;
             return *this;
         }
 
-        DynArrayConstIterator operator--(int)
+        ConstIterator operator--(int)
         {
-            DynArrayConstIterator iterator { *this };
+            ConstIterator iterator { *this };
             --(*this);
             return iterator;
         }
 
-        DynArrayConstIterator& operator+=(int x)
+        ConstIterator& operator+=(int x)
         {
             m_ptr += x;
             return *this;
         }
 
-        DynArrayConstIterator& operator-=(int x)
+        ConstIterator& operator-=(int x)
         {
             m_ptr -= x;
             return *this;
         }
 
-        DynArrayConstIterator operator+(const difference_type x) const
+        ConstIterator operator+(const difference_type x) const
         {
             return m_ptr + x;
         }
 
-        friend DynArrayConstIterator operator+(const difference_type x, const DynArrayConstIterator& other)
+        friend ConstIterator operator+(const difference_type x, const ConstIterator& other)
         {
             return other + x;
         }
 
-        DynArrayConstIterator operator-(const difference_type x) const
+        ConstIterator operator-(const difference_type x) const
         {
             return m_ptr - x;
         }
 
-        friend DynArrayConstIterator operator-(const difference_type x, const DynArrayConstIterator& other)
+        friend ConstIterator operator-(const difference_type x, const ConstIterator& other)
         {
             return other - x;
         }
 
-        difference_type operator-(const DynArrayConstIterator& other) const
+        difference_type operator-(const ConstIterator& other) const
         {
             return m_ptr - other.m_ptr;
         }
 
-        friend bool operator==(const DynArrayConstIterator& a, const DynArrayConstIterator& other)
+        friend bool operator==(const ConstIterator& a, const ConstIterator& other)
         {
             return (a.m_ptr == other.m_ptr);
         }
 
-        friend bool operator!=(const DynArrayConstIterator& a, const DynArrayConstIterator& other)
+        friend bool operator!=(const ConstIterator& a, const ConstIterator& other)
         {
             return (a.m_ptr != other.m_ptr);
         }
 
-        friend bool operator<(const DynArrayConstIterator& a, const DynArrayConstIterator& other)
+        friend bool operator<(const ConstIterator& a, const ConstIterator& other)
         {
             return (a.m_ptr < other.m_ptr);
         }
 
-        friend bool operator>(const DynArrayConstIterator& a, const DynArrayConstIterator& other)
+        friend bool operator>(const ConstIterator& a, const ConstIterator& other)
         {
             return (a.m_ptr > other.m_ptr);
         }
 
-        friend bool operator<=(const DynArrayConstIterator& a, const DynArrayConstIterator& other)
+        friend bool operator<=(const ConstIterator& a, const ConstIterator& other)
         {
             return (a.m_ptr <= other.m_ptr);
         }
 
-        friend bool operator>=(const DynArrayConstIterator& a, const DynArrayConstIterator& other)
+        friend bool operator>=(const ConstIterator& a, const ConstIterator& other)
         {
             return (a.m_ptr >= other.m_ptr);
         }
 
         auto operator<=>(const DynArrayConstIterator& other) const = default;
 
-        friend std::ostream& operator<<(std::ostream& out, const DynArrayConstIterator& c_it)
+        friend std::ostream& operator<<(std::ostream& out, const ConstIterator& c_it)
         {
             out << c_it.m_ptr;
             return out;
         }
     };
 
-    struct DynArrayRIterator final
+    struct ReverseIterator final
     {
         using difference_type = std::ptrdiff_t;
 
@@ -389,7 +389,7 @@ private:
 
         pointer m_ptr { nullptr };
 
-        DynArrayRIterator(pointer ptr)
+        ReverseIterator(pointer ptr)
         : m_ptr { ptr } {}
 
         pointer operator->()
@@ -412,109 +412,109 @@ private:
             return m_ptr[position];
         }
 
-        DynArrayRIterator& operator++()
+        ReverseIterator& operator++()
         {
             --m_ptr;
             return *this;
         }
 
-        DynArrayRIterator operator++(int)
+        ReverseIterator operator++(int)
         {
-            DynArrayRIterator iterator { *this };
+            ReverseIterator iterator { *this };
             --(*this);
             return iterator;
         }
 
-        DynArrayRIterator& operator--()
+        ReverseIterator& operator--()
         {
             ++m_ptr;
             return *this;
         }
 
-        DynArrayRIterator operator--(int)
+        ReverseIterator operator--(int)
         {
-            DynArrayRIterator iterator { *this };
+            ReverseIterator iterator { *this };
             ++(*this);
             return iterator;
         }
 
-        DynArrayRIterator& operator+=(int x)
+        ReverseIterator& operator+=(int x)
         {
             m_ptr -= x;
             return *this;
         }
 
-        DynArrayRIterator& operator-=(int x)
+        ReverseIterator& operator-=(int x)
         {
             m_ptr += x;
             return *this;
         }
 
-        DynArrayRIterator operator+(const difference_type x) const
+        ReverseIterator operator+(const difference_type x) const
         {
             return m_ptr - x;
         }
 
-        friend DynArrayRIterator operator+(const difference_type x, const DynArrayRIterator& other)
+        friend ReverseIterator operator+(const difference_type x, const ReverseIterator& other)
         {
             return other - x;
         }
 
-        DynArrayRIterator operator-(const difference_type x) const
+        ReverseIterator operator-(const difference_type x) const
         {
             return m_ptr + x;
         }
 
-        friend DynArrayRIterator operator-(const difference_type x, const DynArrayRIterator& other)
+        friend ReverseIterator operator-(const difference_type x, const ReverseIterator& other)
         {
             return other + x;
         }
 
-        difference_type operator-(const DynArrayRIterator& other) const
+        difference_type operator-(const ReverseIterator& other) const
         {
             return m_ptr - other.m_ptr;
         }
 
-        friend bool operator==(const DynArrayRIterator& a, const DynArrayRIterator& other)
+        friend bool operator==(const ReverseIterator& a, const ReverseIterator& other)
         {
             return (a.m_ptr == other.m_ptr);
         }
 
-        friend bool operator!=(const DynArrayRIterator& a, const DynArrayRIterator& other)
+        friend bool operator!=(const ReverseIterator& a, const ReverseIterator& other)
         {
             return (a.m_ptr != other.m_ptr);
         }
 
-        friend bool operator<(const DynArrayRIterator& a, const DynArrayRIterator& other)
+        friend bool operator<(const ReverseIterator& a, const ReverseIterator& other)
         {
             return (a.m_ptr < other.m_ptr);
         }
 
-        friend bool operator>(const DynArrayRIterator& a, const DynArrayRIterator& other)
+        friend bool operator>(const ReverseIterator& a, const ReverseIterator& other)
         {
             return (a.m_ptr > other.m_ptr);
         }
 
-        friend bool operator<=(const DynArrayRIterator& a, const DynArrayRIterator& other)
+        friend bool operator<=(const ReverseIterator& a, const ReverseIterator& other)
         {
             return (a.m_ptr <= other.m_ptr);
         }
 
-        friend bool operator>=(const DynArrayRIterator& a, const DynArrayRIterator& other)
+        friend bool operator>=(const ReverseIterator& a, const ReverseIterator& other)
         {
             return (a.m_ptr >= other.m_ptr);
         }
 
         auto operator<=>(const DynArrayRIterator& other) const = default;
 
-        friend std::ostream& operator<<(std::ostream& out, const DynArrayRIterator& rit)
+        friend std::ostream& operator<<(std::ostream& out, const ReverseIterator& rit)
         {
             out << rit.m_ptr;
             return out;
         }
     };
 
-    struct DynArrayConstRIterator
+    struct ConstReverseIterator
     {
         using difference_type = std::ptrdiff_t;
 
@@ -530,7 +530,7 @@ private:
 
         pointer m_ptr { nullptr };
 
-        DynArrayConstRIterator(pointer ptr)
+        ConstReverseIterator(pointer ptr)
         : m_ptr { ptr } {}
 
         pointer operator->()
@@ -553,102 +553,102 @@ private:
             return m_ptr[position];
         }
 
-        DynArrayConstRIterator& operator++()
+        ConstReverseIterator& operator++()
         {
             --m_ptr;
             return *this;
         }
 
-        DynArrayConstRIterator operator++(int)
+        ConstReverseIterator operator++(int)
         {
-            DynArrayConstRIterator iterator { *this };
+            ConstReverseIterator iterator { *this };
             --(*this);
             return iterator;
         }
 
-        DynArrayConstRIterator& operator--()
+        ConstReverseIterator& operator--()
         {
             ++m_ptr;
             return *this;
         }
 
-        DynArrayConstRIterator operator--(int)
+        ConstReverseIterator operator--(int)
         {
-            DynArrayConstRIterator iterator { *this };
+            ConstReverseIterator iterator { *this };
             ++(*this);
             return iterator;
         }
 
-        DynArrayConstRIterator& operator+=(int x)
+        ConstReverseIterator& operator+=(int x)
         {
             m_ptr -= x;
             return *this;
         }
 
-        DynArrayConstRIterator& operator-=(int x)
+        ConstReverseIterator& operator-=(int x)
         {
             m_ptr += x;
             return *this;
         }
 
-        DynArrayConstRIterator operator+(const difference_type x) const
+        ConstReverseIterator operator+(const difference_type x) const
         {
             return m_ptr - x;
         }
 
-        friend DynArrayConstRIterator operator+(const difference_type x, const DynArrayConstRIterator& other)
+        friend ConstReverseIterator operator+(const difference_type x, const ConstReverseIterator& other)
         {
             return other - x;
         }
 
-        DynArrayConstRIterator operator-(const difference_type x) const
+        ConstReverseIterator operator-(const difference_type x) const
         {
             return m_ptr + x;
         }
 
-        friend DynArrayConstRIterator operator-(const difference_type x, const DynArrayConstRIterator& other)
+        friend ConstReverseIterator operator-(const difference_type x, const ConstReverseIterator& other)
         {
             return other + x;
         }
 
-        difference_type operator-(const DynArrayConstRIterator& other) const
+        difference_type operator-(const ConstReverseIterator& other) const
         {
             return m_ptr - other.m_ptr;
         }
 
-        friend bool operator==(const DynArrayConstRIterator& a, const DynArrayConstRIterator& other)
+        friend bool operator==(const ConstReverseIterator& a, const ConstReverseIterator& other)
         {
             return (a.m_ptr == other.m_ptr);
         }
 
-        friend bool operator!=(const DynArrayConstRIterator& a, const DynArrayConstRIterator& other)
+        friend bool operator!=(const ConstReverseIterator& a, const ConstReverseIterator& other)
         {
             return (a.m_ptr != other.m_ptr);
         }
 
-        friend bool operator<(const DynArrayConstRIterator& a, const DynArrayConstRIterator& other)
+        friend bool operator<(const ConstReverseIterator& a, const ConstReverseIterator& other)
         {
             return (a.m_ptr < other.m_ptr);
         }
 
-        friend bool operator>(const DynArrayConstRIterator& a, const DynArrayConstRIterator& other)
+        friend bool operator>(const ConstReverseIterator& a, const ConstReverseIterator& other)
         {
             return (a.m_ptr > other.m_ptr);
         }
 
-        friend bool operator<=(const DynArrayConstRIterator& a, const DynArrayConstRIterator& other)
+        friend bool operator<=(const ConstReverseIterator& a, const ConstReverseIterator& other)
         {
             return (a.m_ptr <= other.m_ptr);
         }
 
-        friend bool operator>=(const DynArrayConstRIterator& a, const DynArrayConstRIterator& other)
+        friend bool operator>=(const ConstReverseIterator& a, const ConstReverseIterator& other)
         {
             return (a.m_ptr >= other.m_ptr);
         }
 
         auto operator<=>(const DynArrayConstRIterator& other) const = default;
 
-        friend std::ostream& operator<<(std::ostream& out, const DynArrayConstRIterator& rit)
+        friend std::ostream& operator<<(std::ostream& out, const ConstReverseIterator& rit)
         {
             out << rit.m_ptr;
             return out;
@@ -656,10 +656,10 @@ private:
     };
 
 public:
-    using iterator = DynArrayIterator;
-    using const_iterator = DynArrayConstIterator;
-    using reverse_iterator = DynArrayRIterator;
-    using const_reverse_iterator = DynArrayConstRIterator;
+    using iterator = Iterator;
+    using const_iterator = ConstIterator;
+    using reverse_iterator = ReverseIterator;
+    using const_reverse_iterator = ConstReverseIterator;
 
 private:
     // It increases or decreases the amount of memory used and moves the existing T elements into
