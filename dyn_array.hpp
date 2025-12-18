@@ -65,248 +65,603 @@ if (!condition)                                             \
 namespace hdsa
 {
 
-template<typename DynArray>
-class DynArrayIterator final
-{
-public:
-    using difference_type = std::ptrdiff_t;
-
-    using value_type = typename DynArray::value_type;
-
-    using pointer = value_type*;
-
-    using reference = value_type&;
-
-    using iterator_category = std::random_access_iterator_tag;
-    using iterator_concept = std::contiguous_iterator_tag;
-
-private:
-    pointer m_ptr { nullptr };
-
-public:
-    DynArrayIterator(pointer ptr)
-    : m_ptr { ptr } {}
-
-    DynArrayIterator& operator++()
-    {
-        m_ptr++;
-        return *this;
-    }
-
-    DynArrayIterator operator++(int)
-    {
-        DynArrayIterator iterator { *this };
-        ++(*this);
-        return iterator;
-    }
-
-    DynArrayIterator& operator--()
-    {
-        m_ptr--;
-        return *this;
-    }
-
-    DynArrayIterator operator--(int)
-    {
-        DynArrayIterator iterator { *this };
-        --(*this);
-        return iterator;
-    }
-
-    DynArrayIterator operator+(int x)
-    {
-        m_ptr += x;
-        return *this;
-    }
-
-    DynArrayIterator operator+=(int x)
-    {
-        m_ptr += x;
-        return *this;
-    }
-
-    DynArrayIterator operator-(int x)
-    {
-        m_ptr -= x;
-        return *this;
-    }
-
-    DynArrayIterator operator-=(int x)
-    {
-        m_ptr -= x;
-        return *this;
-    }
-
-    reference operator[](std::size_t position)
-    {
-        return m_ptr[position];
-    }
-
-    pointer operator->()
-    {
-        return m_ptr;
-    }
-
-    reference operator*()
-    {
-        return *m_ptr;
-    }
-
-    bool operator==(const DynArrayIterator& other)
-    {
-        return m_ptr == other.m_ptr;
-    }
-
-    bool operator!=(const DynArrayIterator& other)
-    {
-        return !(*this == other);
-    }
-
-    pointer data()
-    {
-        return m_ptr;
-    }
-
-    friend std::ostream& operator<<(std::ostream& out, const DynArrayIterator& it)
-    {
-        out << it.m_ptr;
-        return out;
-    }
-};
-
-template<typename DynArray>
-class DynArrayConstIterator final
-{
-public:
-    using difference_type = std::ptrdiff_t;
-
-    using value_type = typename DynArray::value_type;
-
-    using pointer = const value_type*;
-
-    using reference = const value_type&;
-
-    using iterator_category = std::random_access_iterator_tag;
-    using iterator_concept = std::contiguous_iterator_tag;
-
-private:
-    pointer m_ptr { nullptr };
-
-public:
-    DynArrayConstIterator(pointer ptr)
-    : m_ptr { ptr } {}
-
-    DynArrayConstIterator& operator++()
-    {
-        m_ptr++;
-        return *this;
-    }
-
-    DynArrayConstIterator operator++(int)
-    {
-        DynArrayConstIterator iterator { *this };
-        ++(*this);
-        return iterator;
-    }
-
-    DynArrayConstIterator& operator--()
-    {
-        m_ptr--;
-        return *this;
-    }
-
-    DynArrayConstIterator operator--(int)
-    {
-        DynArrayConstIterator iterator { *this };
-        --(*this);
-        return iterator;
-    }
-
-    DynArrayConstIterator operator+(int x)
-    {
-        m_ptr += x;
-        return *this;
-    }
-
-    DynArrayConstIterator operator+=(int x)
-    {
-        m_ptr += x;
-        return *this;
-    }
-
-    DynArrayConstIterator operator-(int x)
-    {
-        m_ptr -= x;
-        return *this;
-    }
-
-    DynArrayConstIterator operator-=(int x)
-    {
-        m_ptr -= x;
-        return *this;
-    }
-
-    reference operator[](std::size_t position)
-    {
-        return m_ptr[position];
-    }
-
-    pointer operator->()
-    {
-        return m_ptr;
-    }
-
-    reference operator*()
-    {
-        return *m_ptr;
-    }
-
-    bool operator==(const DynArrayConstIterator& other)
-    {
-        return m_ptr == other.m_ptr;
-    }
-
-    bool operator!=(const DynArrayConstIterator& other)
-    {
-        return !(*this == other);
-    }
-
-    pointer data()
-    {
-        return m_ptr;
-    }
-
-    friend std::ostream& operator<<(std::ostream& out, const DynArrayConstIterator& c_it)
-    {
-        out << c_it.m_ptr;
-        return out;
-    }
-};
-
 template<typename T>
 class DynArray final
 {
 public:
     using value_type = T;
-    using allocator_type = std::allocator<value_type>;
+    using element_type = value_type;
+    // using allocator_type = std::allocator<value_type>;
 
     using size_type = std::size_t;
     using difference_type = std::ptrdiff_t;
 
+    using pointer = value_type*;
+    using const_pointer = const value_type*;
+
+    // using pointer = std::allocator_traits<allocator_type>::pointer;
+    // using const_pointer = std::allocator_traits<allocator_type>::const_pointer;
+
     using reference = value_type&;
     using const_reference = const value_type&;
-
-    using pointer = std::allocator_traits<allocator_type>::pointer;
-    using const_pointer = std::allocator_traits<allocator_type>::const_pointer;
-
-    using iterator = DynArrayIterator<DynArray<value_type>>;
-    using const_iterator = DynArrayConstIterator<DynArray<value_type>>;
 
 private:
     T* m_first_ptr { nullptr };
     std::size_t m_size {};
     std::size_t m_capacity {};
 
+
+    struct DynArrayIterator final
+    {
+        using difference_type = std::ptrdiff_t;
+
+        using value_type = DynArray::value_type;
+        using element_type = value_type;
+
+        using pointer = value_type*;
+
+        using reference = value_type&;
+
+        using iterator_category = std::random_access_iterator_tag;
+        using iterator_concept = std::contiguous_iterator_tag;
+
+        pointer m_ptr { nullptr };
+
+        DynArrayIterator(pointer ptr)
+        : m_ptr { ptr } {}
+
+        pointer operator->()
+        {
+            return m_ptr;
+        }
+
+        reference operator*() const
+        {
+            return *m_ptr;
+        }
+
+        pointer data()
+        {
+            return m_ptr;
+        }
+
+        reference operator[](std::size_t position) const
+        {
+            return m_ptr[position];
+        }
+
+        DynArrayIterator& operator++()
+        {
+            ++m_ptr;
+            return *this;
+        }
+
+        DynArrayIterator operator++(int)
+        {
+            DynArrayIterator iterator { *this };
+            ++(*this);
+            return iterator;
+        }
+
+        DynArrayIterator& operator--()
+        {
+            --m_ptr;
+            return *this;
+        }
+
+        DynArrayIterator operator--(int)
+        {
+            DynArrayIterator iterator { *this };
+            --(*this);
+            return iterator;
+        }
+
+        DynArrayIterator& operator+=(int x)
+        {
+            m_ptr += x;
+            return *this;
+        }
+
+        DynArrayIterator& operator-=(int x)
+        {
+            m_ptr -= x;
+            return *this;
+        }
+
+        DynArrayIterator operator+(const difference_type x) const
+        {
+            return m_ptr + x;
+        }
+
+        friend DynArrayIterator operator+(const difference_type x, const DynArrayIterator& other)
+        {
+            return other + x;
+        }
+
+        DynArrayIterator operator-(const difference_type x) const
+        {
+            return m_ptr - x;
+        }
+
+        friend DynArrayIterator operator-(const difference_type x, const DynArrayIterator& other)
+        {
+            return other - x;
+        }
+
+        difference_type operator-(const DynArrayIterator& other) const
+        {
+            return m_ptr - other.m_ptr;
+        }
+
+        friend bool operator==(const DynArrayIterator& a, const DynArrayIterator& other)
+        {
+            return (a.m_ptr == other.m_ptr);
+        }
+
+        friend bool operator!=(const DynArrayIterator& a, const DynArrayIterator& other)
+        {
+            return (a.m_ptr != other.m_ptr);
+        }
+
+        friend bool operator<(const DynArrayIterator& a, const DynArrayIterator& other)
+        {
+            return (a.m_ptr < other.m_ptr);
+        }
+
+        friend bool operator>(const DynArrayIterator& a, const DynArrayIterator& other)
+        {
+            return (a.m_ptr > other.m_ptr);
+        }
+
+        friend bool operator<=(const DynArrayIterator& a, const DynArrayIterator& other)
+        {
+            return (a.m_ptr <= other.m_ptr);
+        }
+
+        friend bool operator>=(const DynArrayIterator& a, const DynArrayIterator& other)
+        {
+            return (a.m_ptr >= other.m_ptr);
+        }
+
+        auto operator<=>(const DynArrayIterator& other) const = default;
+
+        friend std::ostream& operator<<(std::ostream& out, const DynArrayIterator& it)
+        {
+            out << it.m_ptr;
+            return out;
+        }
+    };
+
+    struct DynArrayConstIterator final
+    {
+        using difference_type = std::ptrdiff_t;
+
+        using value_type = DynArray::value_type;
+        using element_type = value_type;
+
+        using pointer = const value_type*;
+
+        using reference = const value_type&;
+
+        using iterator_category = std::random_access_iterator_tag;
+        using iterator_concept = std::contiguous_iterator_tag;
+
+        pointer m_ptr { nullptr };
+
+        DynArrayConstIterator(pointer ptr)
+        : m_ptr { ptr } {}
+
+        pointer operator->()
+        {
+            return m_ptr;
+        }
+
+        reference operator*() const
+        {
+            return *m_ptr;
+        }
+
+        pointer data()
+        {
+            return m_ptr;
+        }
+
+        reference operator[](std::size_t position) const
+        {
+            return m_ptr[position];
+        }
+
+        DynArrayConstIterator& operator++()
+        {
+            ++m_ptr;
+            return *this;
+        }
+
+        DynArrayConstIterator operator++(int)
+        {
+            DynArrayConstIterator iterator { *this };
+            ++(*this);
+            return iterator;
+        }
+
+        DynArrayConstIterator& operator--()
+        {
+            --m_ptr;
+            return *this;
+        }
+
+        DynArrayConstIterator operator--(int)
+        {
+            DynArrayConstIterator iterator { *this };
+            --(*this);
+            return iterator;
+        }
+
+        DynArrayConstIterator& operator+=(int x)
+        {
+            m_ptr += x;
+            return *this;
+        }
+
+        DynArrayConstIterator& operator-=(int x)
+        {
+            m_ptr -= x;
+            return *this;
+        }
+
+        DynArrayConstIterator operator+(const difference_type x) const
+        {
+            return m_ptr + x;
+        }
+
+        friend DynArrayConstIterator operator+(const difference_type x, const DynArrayConstIterator& other)
+        {
+            return other + x;
+        }
+
+        DynArrayConstIterator operator-(const difference_type x) const
+        {
+            return m_ptr - x;
+        }
+
+        friend DynArrayConstIterator operator-(const difference_type x, const DynArrayConstIterator& other)
+        {
+            return other - x;
+        }
+
+        difference_type operator-(const DynArrayConstIterator& other) const
+        {
+            return m_ptr - other.m_ptr;
+        }
+
+        friend bool operator==(const DynArrayConstIterator& a, const DynArrayConstIterator& other)
+        {
+            return (a.m_ptr == other.m_ptr);
+        }
+
+        friend bool operator!=(const DynArrayConstIterator& a, const DynArrayConstIterator& other)
+        {
+            return (a.m_ptr != other.m_ptr);
+        }
+
+        friend bool operator<(const DynArrayConstIterator& a, const DynArrayConstIterator& other)
+        {
+            return (a.m_ptr < other.m_ptr);
+        }
+
+        friend bool operator>(const DynArrayConstIterator& a, const DynArrayConstIterator& other)
+        {
+            return (a.m_ptr > other.m_ptr);
+        }
+
+        friend bool operator<=(const DynArrayConstIterator& a, const DynArrayConstIterator& other)
+        {
+            return (a.m_ptr <= other.m_ptr);
+        }
+
+        friend bool operator>=(const DynArrayConstIterator& a, const DynArrayConstIterator& other)
+        {
+            return (a.m_ptr >= other.m_ptr);
+        }
+
+        auto operator<=>(const DynArrayConstIterator& other) const = default;
+
+        friend std::ostream& operator<<(std::ostream& out, const DynArrayConstIterator& c_it)
+        {
+            out << c_it.m_ptr;
+            return out;
+        }
+    };
+
+    struct DynArrayRIterator final
+    {
+        using difference_type = std::ptrdiff_t;
+
+        using value_type = DynArray::value_type;
+        using element_type = value_type;
+
+        using pointer = value_type*;
+
+        using reference = value_type&;
+
+        using iterator_category = std::random_access_iterator_tag;
+        using iterator_concept = std::contiguous_iterator_tag;
+
+        pointer m_ptr { nullptr };
+
+        DynArrayRIterator(pointer ptr)
+        : m_ptr { ptr } {}
+
+        pointer operator->()
+        {
+            return m_ptr;
+        }
+
+        reference operator*() const
+        {
+            return *m_ptr;
+        }
+
+        pointer data()
+        {
+            return m_ptr;
+        }
+
+        reference operator[](std::size_t position) const
+        {
+            return m_ptr[position];
+        }
+
+        DynArrayRIterator& operator++()
+        {
+            --m_ptr;
+            return *this;
+        }
+
+        DynArrayRIterator operator++(int)
+        {
+            DynArrayRIterator iterator { *this };
+            --(*this);
+            return iterator;
+        }
+
+        DynArrayRIterator& operator--()
+        {
+            ++m_ptr;
+            return *this;
+        }
+
+        DynArrayRIterator operator--(int)
+        {
+            DynArrayRIterator iterator { *this };
+            ++(*this);
+            return iterator;
+        }
+
+        DynArrayRIterator& operator+=(int x)
+        {
+            m_ptr -= x;
+            return *this;
+        }
+
+        DynArrayRIterator& operator-=(int x)
+        {
+            m_ptr += x;
+            return *this;
+        }
+
+        DynArrayRIterator operator+(const difference_type x) const
+        {
+            return m_ptr - x;
+        }
+
+        friend DynArrayRIterator operator+(const difference_type x, const DynArrayRIterator& other)
+        {
+            return other - x;
+        }
+
+        DynArrayRIterator operator-(const difference_type x) const
+        {
+            return m_ptr + x;
+        }
+
+        friend DynArrayRIterator operator-(const difference_type x, const DynArrayRIterator& other)
+        {
+            return other + x;
+        }
+
+        difference_type operator-(const DynArrayRIterator& other) const
+        {
+            return m_ptr - other.m_ptr;
+        }
+
+        friend bool operator==(const DynArrayRIterator& a, const DynArrayRIterator& other)
+        {
+            return (a.m_ptr == other.m_ptr);
+        }
+
+        friend bool operator!=(const DynArrayRIterator& a, const DynArrayRIterator& other)
+        {
+            return (a.m_ptr != other.m_ptr);
+        }
+
+        friend bool operator<(const DynArrayRIterator& a, const DynArrayRIterator& other)
+        {
+            return (a.m_ptr < other.m_ptr);
+        }
+
+        friend bool operator>(const DynArrayRIterator& a, const DynArrayRIterator& other)
+        {
+            return (a.m_ptr > other.m_ptr);
+        }
+
+        friend bool operator<=(const DynArrayRIterator& a, const DynArrayRIterator& other)
+        {
+            return (a.m_ptr <= other.m_ptr);
+        }
+
+        friend bool operator>=(const DynArrayRIterator& a, const DynArrayRIterator& other)
+        {
+            return (a.m_ptr >= other.m_ptr);
+        }
+
+        auto operator<=>(const DynArrayRIterator& other) const = default;
+
+        friend std::ostream& operator<<(std::ostream& out, const DynArrayRIterator& rit)
+        {
+            out << rit.m_ptr;
+            return out;
+        }
+    };
+
+    struct DynArrayConstRIterator
+    {
+        using difference_type = std::ptrdiff_t;
+
+        using value_type = DynArray::value_type;
+        using element_type = value_type;
+
+        using pointer = const value_type*;
+
+        using reference = const value_type&;
+
+        using iterator_category = std::random_access_iterator_tag;
+        using iterator_concept = std::contiguous_iterator_tag;
+
+        pointer m_ptr { nullptr };
+
+        DynArrayConstRIterator(pointer ptr)
+        : m_ptr { ptr } {}
+
+        pointer operator->()
+        {
+            return m_ptr;
+        }
+
+        reference operator*() const
+        {
+            return *m_ptr;
+        }
+
+        pointer data()
+        {
+            return m_ptr;
+        }
+
+        reference operator[](std::size_t position) const
+        {
+            return m_ptr[position];
+        }
+
+        DynArrayConstRIterator& operator++()
+        {
+            --m_ptr;
+            return *this;
+        }
+
+        DynArrayConstRIterator operator++(int)
+        {
+            DynArrayConstRIterator iterator { *this };
+            --(*this);
+            return iterator;
+        }
+
+        DynArrayConstRIterator& operator--()
+        {
+            ++m_ptr;
+            return *this;
+        }
+
+        DynArrayConstRIterator operator--(int)
+        {
+            DynArrayConstRIterator iterator { *this };
+            ++(*this);
+            return iterator;
+        }
+
+        DynArrayConstRIterator& operator+=(int x)
+        {
+            m_ptr -= x;
+            return *this;
+        }
+
+        DynArrayConstRIterator& operator-=(int x)
+        {
+            m_ptr += x;
+            return *this;
+        }
+
+        DynArrayConstRIterator operator+(const difference_type x) const
+        {
+            return m_ptr - x;
+        }
+
+        friend DynArrayConstRIterator operator+(const difference_type x, const DynArrayConstRIterator& other)
+        {
+            return other - x;
+        }
+
+        DynArrayConstRIterator operator-(const difference_type x) const
+        {
+            return m_ptr + x;
+        }
+
+        friend DynArrayConstRIterator operator-(const difference_type x, const DynArrayConstRIterator& other)
+        {
+            return other + x;
+        }
+
+        difference_type operator-(const DynArrayConstRIterator& other) const
+        {
+            return m_ptr - other.m_ptr;
+        }
+
+        friend bool operator==(const DynArrayConstRIterator& a, const DynArrayConstRIterator& other)
+        {
+            return (a.m_ptr == other.m_ptr);
+        }
+
+        friend bool operator!=(const DynArrayConstRIterator& a, const DynArrayConstRIterator& other)
+        {
+            return (a.m_ptr != other.m_ptr);
+        }
+
+        friend bool operator<(const DynArrayConstRIterator& a, const DynArrayConstRIterator& other)
+        {
+            return (a.m_ptr < other.m_ptr);
+        }
+
+        friend bool operator>(const DynArrayConstRIterator& a, const DynArrayConstRIterator& other)
+        {
+            return (a.m_ptr > other.m_ptr);
+        }
+
+        friend bool operator<=(const DynArrayConstRIterator& a, const DynArrayConstRIterator& other)
+        {
+            return (a.m_ptr <= other.m_ptr);
+        }
+
+        friend bool operator>=(const DynArrayConstRIterator& a, const DynArrayConstRIterator& other)
+        {
+            return (a.m_ptr >= other.m_ptr);
+        }
+
+        auto operator<=>(const DynArrayConstRIterator& other) const = default;
+
+        friend std::ostream& operator<<(std::ostream& out, const DynArrayConstRIterator& rit)
+        {
+            out << rit.m_ptr;
+            return out;
+        }
+    };
+
+public:
+    using iterator = DynArrayIterator;
+    using const_iterator = DynArrayConstIterator;
+    using reverse_iterator = DynArrayRIterator;
+    using const_reverse_iterator = DynArrayConstRIterator;
+
+private:
     // It increases or decreases the amount of memory used and moves the existing T elements into
     // the new buffer
     void mem_realloc(std::size_t element_amount)
@@ -401,9 +756,7 @@ private:
     // It changes old_ptr with nullptr and returns the previous value of old_ptr. It doesn't handle resources
     T* exchange_with_null(DynArray* old_object)
     {
-        if (old_object->m_first_ptr == nullptr) { return old_object->m_first_ptr; }
-
-        T* temp_ptr { &(*(old_object->m_first_ptr)) };
+        T* temp_ptr { old_object->m_first_ptr };
         old_object->m_first_ptr = nullptr;
         return temp_ptr;
     }
@@ -709,27 +1062,7 @@ public:
         return m_first_ptr[m_size - 1];
     }
 
-    iterator begin()
-    {
-        return iterator(m_first_ptr);
-    }
-
-    iterator end()
-    {
-        return iterator(m_first_ptr + m_size);
-    }
-
-    const_iterator cbegin()
-    {
-        return const_iterator(m_first_ptr);
-    }
-
-    const_iterator cend()
-    {
-        return const_iterator(m_first_ptr + m_size);
-    }
-
-    // Increases the buffer and capacity
+        // Increases the buffer and capacity
     void reserve(std::size_t element_amount)
     {
         BASIC_ASSERT((capacity() < std::numeric_limits<std::size_t>::max()), "The DynArray has a capacity that matches the limit of std::size_t, so it cannot grow any further.\n");
@@ -978,6 +1311,46 @@ public:
         out << dyn[dyn.size() - 1] << " }\n\n";
 
         return out;
+    }
+
+    iterator begin()
+    {
+        return iterator(m_first_ptr);
+    }
+
+    iterator end()
+    {
+        return iterator(m_first_ptr + m_size);
+    }
+
+    const_iterator cbegin()
+    {
+        return const_iterator(m_first_ptr);
+    }
+
+    const_iterator cend()
+    {
+        return const_iterator(m_first_ptr + m_size);
+    }
+
+    reverse_iterator rbegin()
+    {
+        return reverse_iterator(m_first_ptr + (m_size - 1));
+    }
+
+    reverse_iterator rend()
+    {
+        return reverse_iterator(m_first_ptr - 1);
+    }
+
+    const_reverse_iterator crbegin()
+    {
+        return const_reverse_iterator(m_first_ptr + (m_size - 1));
+    }
+
+    const_reverse_iterator crend()
+    {
+        return const_reverse_iterator(m_first_ptr - 1);
     }
 };
 
