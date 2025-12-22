@@ -105,8 +105,10 @@ private:
         using iterator_category = std::random_access_iterator_tag;
         using iterator_concept = std::contiguous_iterator_tag;
 
+    private:
         pointer m_ptr { nullptr };
 
+    public:
         Iterator(pointer ptr)
         : m_ptr { ptr } {}
 
@@ -120,13 +122,16 @@ private:
             return *m_ptr;
         }
 
-        pointer data()
-        {
-            return m_ptr;
-        }
-
         reference operator[](std::size_t position) const
         {
+            return m_ptr[position];
+        }
+
+        reference at_checked(std::size_t position) const
+        {
+            BASIC_ASSERT(!(is_empty()), "The DynArray is empty, you can't get elements from it.\n");
+            BASIC_ASSERT((position < m_size), "The position must be a positive number and not bigger than the size of the DynArray.\n");
+
             return m_ptr[position];
         }
 
@@ -246,8 +251,10 @@ private:
         using iterator_category = std::random_access_iterator_tag;
         using iterator_concept = std::contiguous_iterator_tag;
 
+    private:
         pointer m_ptr { nullptr };
 
+    public:
         ConstIterator(pointer ptr)
         : m_ptr { ptr } {}
 
@@ -259,11 +266,6 @@ private:
         reference operator*() const
         {
             return *m_ptr;
-        }
-
-        pointer data()
-        {
-            return m_ptr;
         }
 
         reference operator[](std::size_t position) const
@@ -387,8 +389,10 @@ private:
         using iterator_category = std::random_access_iterator_tag;
         using iterator_concept = std::contiguous_iterator_tag;
 
+    private:
         pointer m_ptr { nullptr };
 
+    public:
         ReverseIterator(pointer ptr)
         : m_ptr { ptr } {}
 
@@ -400,11 +404,6 @@ private:
         reference operator*() const
         {
             return *m_ptr;
-        }
-
-        pointer data()
-        {
-            return m_ptr;
         }
 
         reference operator[](std::size_t position) const
@@ -528,8 +527,10 @@ private:
         using iterator_category = std::random_access_iterator_tag;
         using iterator_concept = std::contiguous_iterator_tag;
 
+    private:
         pointer m_ptr { nullptr };
 
+    public:
         ConstReverseIterator(pointer ptr)
         : m_ptr { ptr } {}
 
@@ -1003,28 +1004,28 @@ public:
 
     T& operator[](std::size_t position)
     {
-        BASIC_ASSERT(!(is_empty()), "The DynArray is empty, you can't get elements from it.\n");
-        BASIC_ASSERT((position < m_size), "The position must be a positive number and not bigger than the size of the DynArray.\n");
-
         return m_first_ptr[position];
     }
 
     const T& operator[](std::size_t position) const
     {
+        return m_first_ptr[position];
+    }
+
+    // It works the same as operator[] but it has bounds checking
+    T& at_checked(const std::size_t position)
+    {
         BASIC_ASSERT(!(is_empty()), "The DynArray is empty, you can't get elements from it.\n");
         BASIC_ASSERT((position < m_size), "The position must be a positive number and not bigger than the size of the DynArray.\n");
 
         return m_first_ptr[position];
     }
 
-    // It works the same as operator[] but it doesn't have bounds checking
-    T& at_unchecked(const std::size_t position)
+    const T& at_checked(const std::size_t position) const
     {
-        return m_first_ptr[position];
-    }
+        BASIC_ASSERT(!(is_empty()), "The DynArray is empty, you can't get elements from it.\n");
+        BASIC_ASSERT((position < m_size), "The position must be a positive number and not bigger than the size of the DynArray.\n");
 
-    const T& at_unchecked(const std::size_t position) const
-    {
         return m_first_ptr[position];
     }
 
