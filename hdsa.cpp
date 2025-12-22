@@ -140,12 +140,104 @@ int main()
     // else { std::cout << "vec's buffer has memory: " << vec.data() << "\n\n"; }
 
 
-    hdsa::DynArray<int> c { 1, 2, 3, 4 };
+    hdsa::DynArray<Vec3> c { Vec3(4, 5, 6, 10), Vec3(5, 1, 6, 4), Vec3(9, 5, 7, 3), Vec3(7, 1, 4, 6) };
 
+    /*
+     * Loops for non-const iterator
+     *
+    */
     std::cout << "C-style loop\n";
-    for (std::size_t i { c.size() - 1}; i > 0; --i)
+    std::cout << "c's size is: " << c.size() << '\n';
+    for (std::size_t i {}; i < c.size(); i++)
     {
         std::cout << c[i] << '\n';
+    }
+
+    std::cout << "C++ 98 style loop\n";
+    for (auto it { c.begin() }; it != c.end(); ++it)
+    {
+        std::cout << *it << '\n';
+    }
+
+    std::cout << "std::algorithm loop\n";
+    std::for_each(c.begin(), c.end(), [](auto &e)
+    {
+        std::cout << e << '\n';
+    });
+
+    std::cout << "Ranged-for loop\n";
+    for(const auto& e: c)
+    {
+        std::cout << e << "\n\n\n";
+    }
+
+
+
+    /*
+     * Loops for const iterator
+     *
+    */
+    std::cout << "C-style loop\n";
+    std::cout << "c's size is: " << c.size() << '\n';
+    for (std::size_t i {}; i < c.size(); i++)
+    {
+        std::cout << c[i] << '\n';
+    }
+
+    std::cout << "C++ 98 style loop\n";
+    for (auto it { c.cbegin() }; it != c.cend(); ++it)
+    {
+        std::cout << *it << '\n';
+    }
+
+    std::cout << "std::algorithm loop\n";
+    std::for_each(c.cbegin(), c.cend(), [](auto &e)
+    {
+        std::cout << e << '\n';
+    });
+
+    std::cout << "Ranged-for loop\n";
+    for(const auto& e: c)
+    {
+        std::cout << e << "\n\n\n";
+    }
+
+
+
+    /*
+     * Loops for non-const reverse iterator
+     *
+    */
+    std::cout << "C-style loop\n";
+    std::cout << "c's size is: " << c.size() << '\n';
+    for (std::size_t i { c.size() }; i > 0; --i)
+    {
+        std::cout << c[i - 1] << '\n';
+    }
+
+    std::cout << "C++ 98 style loop\n";
+    for (auto it { c.rbegin() }; it != c.rend(); ++it)
+    {
+        std::cout << *it << '\n';
+    }
+
+    std::cout << "std::algorithm loop\n";
+    std::for_each(c.rbegin(), c.rend(), [](auto &e)
+    {
+        std::cout << e << "\n\n\n";
+    });
+
+
+
+    /*
+     * Loops for const reverse iterator
+     *
+    */
+    std::cout << "C-style loop\n";
+    std::cout << "c's size is: " << c.size() << '\n';
+    for (std::size_t i { c.size() }; i > 0; --i)
+    {
+        std::cout << c[i - 1] << '\n';
     }
 
     std::cout << "C++ 98 style loop\n";
@@ -159,12 +251,6 @@ int main()
     {
         std::cout << e << '\n';
     });
-
-    // std::cout << "Ranged-for loop\n";
-    // for(const auto& e: c)
-    // {
-    //     std::cout << e << '\n';
-    // }
 
     return 0;
 }

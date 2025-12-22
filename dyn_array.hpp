@@ -223,7 +223,7 @@ private:
             return (a.m_ptr >= other.m_ptr);
         }
 
-        auto operator<=>(const DynArrayIterator& other) const = default;
+        auto operator<=>(const Iterator& other) const = default;
 
         friend std::ostream& operator<<(std::ostream& out, const Iterator& it)
         {
@@ -364,7 +364,7 @@ private:
             return (a.m_ptr >= other.m_ptr);
         }
 
-        auto operator<=>(const DynArrayConstIterator& other) const = default;
+        auto operator<=>(const ConstIterator& other) const = default;
 
         friend std::ostream& operator<<(std::ostream& out, const ConstIterator& c_it)
         {
@@ -505,7 +505,7 @@ private:
             return (a.m_ptr >= other.m_ptr);
         }
 
-        auto operator<=>(const DynArrayRIterator& other) const = default;
+        auto operator<=>(const ReverseIterator& other) const = default;
 
         friend std::ostream& operator<<(std::ostream& out, const ReverseIterator& rit)
         {
@@ -514,7 +514,7 @@ private:
         }
     };
 
-    struct ConstReverseIterator
+    struct ConstReverseIterator final
     {
         using difference_type = std::ptrdiff_t;
 
@@ -646,7 +646,7 @@ private:
             return (a.m_ptr >= other.m_ptr);
         }
 
-        auto operator<=>(const DynArrayConstRIterator& other) const = default;
+        auto operator<=>(const ConstReverseIterator& other) const = default;
 
         friend std::ostream& operator<<(std::ostream& out, const ConstReverseIterator& rit)
         {
@@ -995,22 +995,16 @@ public:
         return ((m_size > 0) && (m_size == m_capacity));
     }
 
+    bool has_memory() { return (m_first_ptr != nullptr); }
+
     std::size_t size() const noexcept { return m_size; }
 
     std::size_t capacity() const noexcept { return m_capacity; }
 
-    // Returns a pointer to the first element in the array, which is the same of the buffer
-    // Very risky to use
-    T* array_ptr() noexcept { return m_first_ptr; }
-
-    // Returns a pointer to the first element in the array, which is the same of the buffer
-    // Very risky to use
-    const T* array_ptr() const noexcept { return m_first_ptr; }
-
     T& operator[](std::size_t position)
     {
         BASIC_ASSERT(!(is_empty()), "The DynArray is empty, you can't get elements from it.\n");
-        BASIC_ASSERT((position < m_size), "The position must be smaller that the size of the DynArray.\n");
+        BASIC_ASSERT((position < m_size), "The position must be a positive number and not bigger than the size of the DynArray.\n");
 
         return m_first_ptr[position];
     }
@@ -1018,7 +1012,7 @@ public:
     const T& operator[](std::size_t position) const
     {
         BASIC_ASSERT(!(is_empty()), "The DynArray is empty, you can't get elements from it.\n");
-        BASIC_ASSERT((position < m_size), "The position must be smaller that the size of the DynArray.\n");
+        BASIC_ASSERT((position < m_size), "The position must be a positive number and not bigger than the size of the DynArray.\n");
 
         return m_first_ptr[position];
     }
@@ -1315,41 +1309,57 @@ public:
 
     iterator begin()
     {
+        BASIC_ASSERT((m_first_ptr != nullptr), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+
         return iterator(m_first_ptr);
     }
 
     iterator end()
     {
+        BASIC_ASSERT((m_first_ptr != nullptr), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+
         return iterator(m_first_ptr + m_size);
     }
 
     const_iterator cbegin()
     {
+        BASIC_ASSERT((m_first_ptr != nullptr), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+
         return const_iterator(m_first_ptr);
     }
 
     const_iterator cend()
     {
+        BASIC_ASSERT((m_first_ptr != nullptr), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+
         return const_iterator(m_first_ptr + m_size);
     }
 
     reverse_iterator rbegin()
     {
+        BASIC_ASSERT((m_first_ptr != nullptr), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+
         return reverse_iterator(m_first_ptr + (m_size - 1));
     }
 
     reverse_iterator rend()
     {
+        BASIC_ASSERT((m_first_ptr != nullptr), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+
         return reverse_iterator(m_first_ptr - 1);
     }
 
     const_reverse_iterator crbegin()
     {
+        BASIC_ASSERT((m_first_ptr != nullptr), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+
         return const_reverse_iterator(m_first_ptr + (m_size - 1));
     }
 
     const_reverse_iterator crend()
     {
+        BASIC_ASSERT((m_first_ptr != nullptr), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+
         return const_reverse_iterator(m_first_ptr - 1);
     }
 };
