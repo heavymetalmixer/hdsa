@@ -674,7 +674,7 @@ private:
     // the new buffer
     void mem_realloc(std::size_t element_amount)
     {
-        if (m_first_ptr == nullptr)
+        if (!has_memory())
         {
             if (element_amount == 0)
             {
@@ -690,14 +690,9 @@ private:
 
         if (element_amount == 0)
         {
-            if (m_size > 0)
+            if (!is_empty())
             {
-                for (std::size_t i {}; i < m_size; i++)
-                {
-                    m_first_ptr[i].~T();
-                }
-
-                m_size = 0;
+                destroy_all();
             }
 
             ::operator delete(m_first_ptr, m_capacity * sizeof(T));
@@ -728,7 +723,7 @@ private:
         // This last case is for when the DynArray is growing to a bigger buffer and capacity
         else
         {
-            if (m_size > 0)
+            if (!is_empty())
             {
                 for (std::size_t i {}; i < m_size; i++)
                 {
@@ -758,7 +753,7 @@ private:
 
         mem_realloc(m_capacity * 2);
 
-        std::cout << "Growing the size";
+        std::cout << "Growing the size.\n";
     }
 
     // It changes old_ptr with nullptr and returns the previous value of old_ptr. It doesn't handle resources
@@ -794,7 +789,7 @@ public:
     : m_size { size },
       m_capacity { size }
     {
-        if (m_size > 0)
+        if (!is_empty())
         {
             mem_realloc(m_capacity);
 
@@ -812,7 +807,7 @@ public:
     : m_size { amount },
       m_capacity { amount }
     {
-        if (m_size > 0)
+        if (!is_empty())
         {
             mem_realloc(m_capacity);
 
@@ -833,7 +828,7 @@ public:
         {
             mem_realloc(m_capacity);
 
-            if (m_size > 0)
+            if (!is_empty())
             {
                 for (std::size_t i {}; i < m_size; i++)
                 {
@@ -846,7 +841,7 @@ public:
 
         std::cout << "Size: " << m_capacity << '\n';
         std::cout << "Capacity: " << m_capacity << '\n';
-        std::cout << ((m_first_ptr == nullptr) ? "The buffer is nullptr\n" : "The buffer has memory assigned to it\n");
+        std::cout << ((!has_memory()) ? "The buffer is nullptr\n" : "The buffer has memory assigned to it\n");
     }
 
     DynArray(std::initializer_list<T> other)
@@ -867,7 +862,7 @@ public:
 
         std::cout << "Size: " << m_capacity << '\n';
         std::cout << "Capacity: " << m_capacity << '\n';
-        std::cout << ((m_first_ptr == nullptr) ? "The buffer is nullptr\n" : "The buffer has memory assigned to it\n");
+        std::cout << ((!has_memory()) ? "The buffer is nullptr\n" : "The buffer has memory assigned to it\n");
     }
 
     DynArray(DynArray&& other) noexcept
@@ -890,7 +885,7 @@ public:
 
         if (m_capacity < other.m_capacity)
         {
-            if (m_first_ptr != nullptr)
+            if (has_memory())
             {
                 ::operator delete(m_first_ptr, m_capacity * sizeof(T));
             }
@@ -899,7 +894,7 @@ public:
             m_first_ptr = static_cast<T*>(::operator new(m_capacity * sizeof(T)));
         }
 
-        if (m_size > 0)
+        if (!is_empty())
         {
             for (std::size_t i {}; i < m_size; i++)
             {
@@ -923,7 +918,7 @@ public:
 
         if (m_capacity < other.size())
         {
-            if (m_first_ptr != nullptr)
+            if (has_memory())
             {
                 ::operator delete(m_first_ptr, m_capacity * sizeof(T));
             }
@@ -932,7 +927,7 @@ public:
             m_first_ptr = static_cast<T*>(::operator new(m_capacity * sizeof(T)));
         }
 
-        if (m_size > 0)
+        if (!is_empty())
         {
             for (std::size_t i {}; i < m_size; i++)
             {
@@ -954,7 +949,7 @@ public:
         m_size = other.m_size;
         other.m_size = 0;
 
-        if (m_first_ptr != nullptr)
+        if (has_memory())
         {
             ::operator delete(m_first_ptr, m_capacity * sizeof(T));
         }
@@ -983,7 +978,7 @@ public:
 
     ~DynArray()
     {
-        if (m_first_ptr != nullptr)
+        if (has_memory())
         {
             destroy_all();
             ::operator delete(m_first_ptr, m_capacity * sizeof(T));
@@ -1000,7 +995,7 @@ public:
     {
         BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
 
-        return ((m_size > 0) && (m_size == m_capacity));
+        return ((!is_empty()) && (m_size == m_capacity));
     }
 
     bool has_memory() { return (m_first_ptr != nullptr); }
@@ -1082,13 +1077,13 @@ public:
 
     void push_back(const T& t)
     {
-        if (size() == std::numeric_limits<std::size_t>::max())
+        if (m_size == std::numeric_limits<std::size_t>::max())
         {
             std::cout << "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be added.\n";
             return;
         }
 
-        if (m_first_ptr == nullptr)
+        if (!has_memory())
         {
             mem_realloc(1);
             new (m_first_ptr) T(t);
@@ -1108,13 +1103,13 @@ public:
 
     void push_back(T&& t)
     {
-        if (size() == std::numeric_limits<std::size_t>::max())
+        if (m_size == std::numeric_limits<std::size_t>::max())
         {
             std::cout << "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be added.\n";
             return;
         }
 
-        if (m_first_ptr == nullptr)
+        if (!has_memory())
         {
             mem_realloc(1);
             new (m_first_ptr) T(std::move_if_noexcept(t));
@@ -1137,9 +1132,9 @@ public:
     template<typename... Args>
     T& emplace_back(Args&&... args)
     {
-        BASIC_ASSERT((size() < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be added.\n");
+        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be added.\n");
 
-        if (m_first_ptr == nullptr)
+        if (!has_memory())
         {
             mem_realloc(1);
         }
@@ -1177,6 +1172,12 @@ public:
     {
         BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
 
+        if (element_amount == 0)
+        {
+            destroy_all();
+            return;
+        }
+
         if (m_capacity < element_amount)
         {
             mem_realloc(element_amount);
@@ -1212,6 +1213,12 @@ public:
     void resize(std::size_t element_amount, const T& value)
     {
         BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
+
+        if (element_amount == 0)
+        {
+            destroy_all();
+            return;
+        }
 
         if (m_capacity < element_amount)
         {
@@ -1268,7 +1275,7 @@ public:
     {
         BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
 
-        if (m_first_ptr == nullptr)
+        if (!has_memory())
         {
             std::cout << "There's no buffer, so no elements can be reset.\n";
             return;
@@ -1290,7 +1297,7 @@ public:
     {
         BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
 
-        if (m_first_ptr == nullptr)
+        if (!has_memory())
         {
             std::cout << "There's no buffer, so no elements can be reset.\n";
             return;
@@ -1320,7 +1327,7 @@ public:
     {
         BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
 
-        if (m_first_ptr == nullptr)
+        if (!has_memory())
         {
             std::cout << "There's no buffer, so no elements can be reset.\n";
             return;
@@ -1349,12 +1356,12 @@ public:
     {
         BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
 
-        if (m_size > 0)
+        if (!is_empty())
         {
             destroy_all();
         }
 
-        if (m_first_ptr != nullptr)
+        if (has_memory())
         {
             ::operator delete(m_first_ptr, m_capacity * sizeof(T));
             m_first_ptr = nullptr;
@@ -1385,56 +1392,56 @@ public:
 
     iterator begin()
     {
-        BASIC_ASSERT((m_first_ptr != nullptr), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+        BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
 
         return iterator(m_first_ptr);
     }
 
     iterator end()
     {
-        BASIC_ASSERT((m_first_ptr != nullptr), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+        BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
 
         return iterator(m_first_ptr + m_size);
     }
 
     const_iterator cbegin()
     {
-        BASIC_ASSERT((m_first_ptr != nullptr), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+        BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
 
         return const_iterator(m_first_ptr);
     }
 
     const_iterator cend()
     {
-        BASIC_ASSERT((m_first_ptr != nullptr), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+        BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
 
         return const_iterator(m_first_ptr + m_size);
     }
 
     reverse_iterator rbegin()
     {
-        BASIC_ASSERT((m_first_ptr != nullptr), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+        BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
 
         return reverse_iterator(m_first_ptr + (m_size - 1));
     }
 
     reverse_iterator rend()
     {
-        BASIC_ASSERT((m_first_ptr != nullptr), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+        BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
 
         return reverse_iterator(m_first_ptr - 1);
     }
 
     const_reverse_iterator crbegin()
     {
-        BASIC_ASSERT((m_first_ptr != nullptr), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+        BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
 
         return const_reverse_iterator(m_first_ptr + (m_size - 1));
     }
 
     const_reverse_iterator crend()
     {
-        BASIC_ASSERT((m_first_ptr != nullptr), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+        BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
 
         return const_reverse_iterator(m_first_ptr - 1);
     }
