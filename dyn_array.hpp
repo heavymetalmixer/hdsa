@@ -122,16 +122,13 @@ private:
             return *m_ptr;
         }
 
-        reference operator[](std::size_t position) const
+        pointer data()
         {
-            return m_ptr[position];
+            return m_ptr;
         }
 
-        reference at_checked(std::size_t position) const
+        reference operator[](std::size_t position) const
         {
-            BASIC_ASSERT(!(is_empty()), "The DynArray is empty, you can't get elements from it.\n");
-            BASIC_ASSERT((position < m_size), "The position must be a positive number and not bigger than the size of the DynArray.\n");
-
             return m_ptr[position];
         }
 
@@ -175,7 +172,7 @@ private:
 
         Iterator operator+(const difference_type x) const
         {
-            return m_ptr + x;
+            return Iterator { m_ptr + x };
         }
 
         friend Iterator operator+(const difference_type x, const Iterator& other)
@@ -185,7 +182,7 @@ private:
 
         Iterator operator-(const difference_type x) const
         {
-            return m_ptr - x;
+            return Iterator { m_ptr - x };
         }
 
         friend Iterator operator-(const difference_type x, const Iterator& other)
@@ -266,6 +263,11 @@ private:
         reference operator*() const
         {
             return *m_ptr;
+        }
+
+        pointer data()
+        {
+            return m_ptr;
         }
 
         reference operator[](std::size_t position) const
@@ -404,6 +406,11 @@ private:
         reference operator*() const
         {
             return *m_ptr;
+        }
+
+        pointer data()
+        {
+            return m_ptr;
         }
 
         reference operator[](std::size_t position) const
@@ -1002,6 +1009,8 @@ public:
 
     std::size_t capacity() const noexcept { return m_capacity; }
 
+    T* array_ptr() const noexcept { return m_first_ptr; }
+
     T& operator[](std::size_t position)
     {
         return m_first_ptr[position];
@@ -1057,14 +1066,14 @@ public:
         return m_first_ptr[m_size - 1];
     }
 
-        // Increases the buffer and capacity
-    void reserve(std::size_t element_amount)
+    // Increases the buffer and capacity
+    void reserve_memory(std::size_t element_amount)
     {
         BASIC_ASSERT((capacity() < std::numeric_limits<std::size_t>::max()), "The DynArray has a capacity that matches the limit of std::size_t, so it cannot grow any further.\n");
 
         if (element_amount <= m_capacity)
         {
-            std::cout << "The amounts of element to reserve is inferior or equal to the current capacity, so reserve() will do nothing.\n";
+            std::cout << "The amounts of element to reserve is inferior or equal to the current capacity, so reserve_memory() will do nothing.\n";
             return;
         }
 
@@ -1161,16 +1170,82 @@ public:
         m_first_ptr[m_size].~T();
     }
 
+    // Changes the size of the DynArray and creates default-constructed T objects if element_amount
+    // is bigger than the DynArray size in the remaining spots.
+    // It will reallocate if element_ammount is bigger than the capacity of the DynArray
+    void resize(std::size_t element_amount)
+    {
+        BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
+
+        if (m_capacity < element_amount)
+        {
+            mem_realloc(element_amount);
+        }
+
+        if (m_size == element_amount)
+        {
+            std::cout << "The current DynArray size and the new one are the same, so no resizing will happen.\n";
+            return;
+        }
+
+        if (m_size < element_amount)
+        {
+            for (std::size_t i { m_size }; i < element_amount; i++)
+            {
+                new(m_first_ptr + i) T();
+            }
+        }
+        else
+        {
+            for (std::size_t i { element_amount }; i < m_size; i++)
+            {
+                m_first_ptr[i].~T();
+            }
+        }
+
+        m_size = element_amount;
+    }
+
+    // Changes the size of the DynArray and creates copies of "value" T objects if element_amount
+    // is bigger than the DynArray size in the remaining spots.
+    // It will reallocate if element_ammount is bigger than the capacity of the DynArray
+    void resize(std::size_t element_amount, const T& value)
+    {
+        BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
+
+        if (m_capacity < element_amount)
+        {
+            mem_realloc(element_amount);
+        }
+
+        if (m_size == element_amount)
+        {
+            std::cout << "The current DynArray size and the new one are the same, so no resizing will happen.\n";
+            return;
+        }
+
+        if (m_size < element_amount)
+        {
+            for (std::size_t i { m_size }; i < element_amount; i++)
+            {
+                new(m_first_ptr + i) T(value);
+            }
+        }
+        else
+        {
+            for (std::size_t i { element_amount }; i < m_size; i++)
+            {
+                m_first_ptr[i].~T();
+            }
+        }
+
+        m_size = element_amount;
+    }
+
     // Makes a reallocation to use a new smaller buffer just big enough to fit all the existing elements
     void shrink_to_size()
     {
         BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
-
-        if (m_first_ptr == nullptr)
-        {
-            std::cout << "There's no buffer, so the DynArray can't be shrinked.\n";
-            return;
-        }
 
         if (m_size == 0)
         {

@@ -87,9 +87,10 @@ int main()
      * operator<<
     */
 
-    hdsa::DynArray<Vec3> c { Vec3(4, 5, 6, 10), Vec3(5, 1, 6, 4), Vec3(9, 5, 7, 3), Vec3(7, 1, 4, 6) };
+    hdsa::DynArray<Vec3> c { };
+    c.resize(3, Vec3(4, 5, 6, 20));
 
-    std::cout << c.begin().at_unchecked(0) << '\n';
+    for (std::size_t i {}; i < c.size(); i++) { std::cout << c[i] << '\n'; }
 
     // /*
     //  * Loops for non-const iterator
