@@ -1183,13 +1183,7 @@ public:
             mem_realloc(element_amount);
         }
 
-        if (m_size == element_amount)
-        {
-            std::cout << "The current DynArray size and the new one are the same, so no resizing will happen.\n";
-            return;
-        }
-
-        if (m_size < element_amount)
+        if (m_size <= element_amount)
         {
             for (std::size_t i { m_size }; i < element_amount; i++)
             {
@@ -1225,13 +1219,7 @@ public:
             mem_realloc(element_amount);
         }
 
-        if (m_size == element_amount)
-        {
-            std::cout << "The current DynArray size and the new one are the same, so no resizing will happen.\n";
-            return;
-        }
-
-        if (m_size < element_amount)
+        if (m_size <= element_amount)
         {
             for (std::size_t i { m_size }; i < element_amount; i++)
             {

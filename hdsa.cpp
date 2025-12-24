@@ -87,9 +87,9 @@ int main()
      * operator<<
     */
 
-    hdsa::DynArray<Vec3> c(1);
-    c.resize(3, Vec3(4, 5, 6, 20));
-    c.push_back(Vec3(9, 4, 7, 1));
+    hdsa::DynArray<Vec3> c(3);
+    c.resize(5);
+    // c.push_back(Vec3(9, 4, 7, 1));
 
     for (std::size_t i {}; i < c.size(); i++) { std::cout << c[i] << '\n'; }
 
