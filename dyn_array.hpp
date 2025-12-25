@@ -175,20 +175,20 @@ private:
             return Iterator { m_ptr + x };
         }
 
-        friend Iterator operator+(const difference_type x, const Iterator& other)
-        {
-            return other + x;
-        }
+        // friend Iterator operator+(const difference_type x, const Iterator& other)
+        // {
+        //     return other + x;
+        // }
 
         Iterator operator-(const difference_type x) const
         {
             return Iterator { m_ptr - x };
         }
 
-        friend Iterator operator-(const difference_type x, const Iterator& other)
-        {
-            return other - x;
-        }
+        // friend Iterator operator-(const difference_type x, const Iterator& other)
+        // {
+        //     return other - x;
+        // }
 
         difference_type operator-(const Iterator& other) const
         {
@@ -224,8 +224,6 @@ private:
         {
             return (a.m_ptr >= other.m_ptr);
         }
-
-        auto operator<=>(const Iterator& other) const = default;
 
         friend std::ostream& operator<<(std::ostream& out, const Iterator& it)
         {
@@ -368,8 +366,6 @@ private:
             return (a.m_ptr >= other.m_ptr);
         }
 
-        auto operator<=>(const ConstIterator& other) const = default;
-
         friend std::ostream& operator<<(std::ostream& out, const ConstIterator& c_it)
         {
             out << c_it.m_ptr;
@@ -511,8 +507,6 @@ private:
             return (a.m_ptr >= other.m_ptr);
         }
 
-        auto operator<=>(const ReverseIterator& other) const = default;
-
         friend std::ostream& operator<<(std::ostream& out, const ReverseIterator& rit)
         {
             out << rit.m_ptr;
@@ -653,8 +647,6 @@ private:
         {
             return (a.m_ptr >= other.m_ptr);
         }
-
-        auto operator<=>(const ConstReverseIterator& other) const = default;
 
         friend std::ostream& operator<<(std::ostream& out, const ConstReverseIterator& rit)
         {

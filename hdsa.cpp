@@ -60,6 +60,290 @@ struct Vec3
     }
 };
 
+void iterators_tests()
+{
+    hdsa::DynArray<Vec3> d { Vec3(4, 6, 8, 2), Vec3{}, Vec3(1, 9, 3, 7), Vec3(1, 5, 9, 4), Vec3(3, 6, 5, 2) };
+    hdsa::DynArray<Vec3>::iterator begin { d.begin() };
+
+    std::cout << "Dereference test on position 0: \n";
+    std::cout << "*begin is: " << *begin << '\n';
+    std::cout << "begin[0] is: " << begin[0] << "\n\n";
+
+    auto copy { begin++ };
+
+    std::cout << "x++ test: \n";
+    std::cout << "copy is begin++: " << *copy << '\n';
+    std::cout << "begin++ is: " << *begin << "\n\n";
+
+    ++copy;
+    ++begin;
+
+    std::cout << "++x test: \n";
+    std::cout << "++copy is: " << *copy << '\n';
+    std::cout << "++begin is: " << *begin << "\n\n";
+
+    copy--;
+    begin--;
+
+    std::cout << "x-- test: \n";
+    std::cout << "copy-- is: " << *copy << '\n';
+    std::cout << "begin-- is: " << *begin << "\n\n";
+
+    // --copy;
+    --begin;
+
+    std::cout << "--x test: \n";
+    // std::cout << "--copy is: " << *copy << '\n';
+    std::cout << "--begin is: " << *begin << "\n\n";
+
+    // ++begin;
+    // ++begin;
+    // ++begin;
+    // ++begin;
+    // ++begin;
+
+    // std::cout << "x++ out of upper bounds test: \n";
+    // std::cout << "++begin is: " << *begin << "\n\n";
+
+    begin +=1;
+
+    std::cout << "x+=1 test: \n";
+    std::cout << "begin+=1 is: " << *begin << "\n\n";
+
+    begin +=0;
+
+    std::cout << "x+=0 test: \n";
+    std::cout << "begin+=0 is: " << *begin << "\n\n";
+
+    begin -=1;
+
+    std::cout << "x-=1 test: \n";
+    std::cout << "begin-=1 is: " << *begin << "\n\n";
+
+    begin -=0;
+
+    std::cout << "x-=0 test: \n";
+    std::cout << "begin-=0 is: " << *begin << "\n\n";
+
+    begin +=4;
+
+    std::cout << "x+=4 test: \n";
+    std::cout << "begin+=4 is: " << *begin << "\n\n";
+
+    begin -=4;
+
+    std::cout << "x-=4 test: \n";
+    std::cout << "begin-=4 is: " << *begin << "\n\n";
+
+    begin = begin + 1;
+
+    std::cout << "x = x + 1 test: \n";
+    std::cout << "begin = begin + 1 is: " << *begin << "\n\n";
+
+    begin = begin + 0;
+
+    std::cout << "x = x + 0 test: \n";
+    std::cout << "begin = begin + 0 is: " << *begin << "\n\n";
+
+    begin = begin - 1;
+
+    std::cout << "x = x - 1 test: \n";
+    std::cout << "begin = begin - 1 is: " << *begin << "\n\n";
+
+    begin = begin - 0;
+
+    std::cout << "x = x - 0 test: \n";
+    std::cout << "begin = begin - 0 is: " << *begin << "\n\n";
+
+    begin = begin + 4;
+
+    std::cout << "x = x + 4 test: \n";
+    std::cout << "begin = begin + 4 is: " << *begin << "\n\n";
+
+    begin = begin - 4;
+
+    std::cout << "x = x - 4 test: \n";
+    std::cout << "begin = begin - 4 is: " << *begin << "\n\n";
+
+    ++begin;
+    std::ptrdiff_t dif { begin - copy };
+
+    std::cout << "std::ptrdiff_t x = begin - copy test: \n";
+    std::cout << "dif is: " << dif << "\n\n";
+
+    --begin;
+
+    std::cout << "x + 4 test: \n";
+    std::cout << "begin + 4 is: " << *(begin + 4) << "\n\n";
+
+    std::cout << "x test: \n";
+    std::cout << "begin now is: " << *begin << "\n\n";
+
+    std::cout << "x == y test: \n";
+    std::cout << "begin == copy is: " << (begin == copy) << "\n\n";
+
+    std::cout << "x != y test: \n";
+    std::cout << "begin != copy is: " << (begin != copy) << "\n\n";
+
+    ++begin;
+
+    std::cout << "x > y test: \n";
+    std::cout << "begin > copy is: " << (begin > copy) << "\n\n";
+
+    std::cout << "x < y test: \n";
+    std::cout << "begin < copy is: " << (begin < copy) << "\n\n";
+
+    ++copy;
+
+    std::cout << "x >= y test: \n";
+    std::cout << "begin >= copy is: " << (begin >= copy) << "\n\n";
+
+    std::cout << "x <= y test: \n";
+    std::cout << "begin <= copy is: " << (begin <= copy) << "\n\n";
+}
+
+void const_iterators_tests()
+{
+    hdsa::DynArray<Vec3> d { Vec3(4, 6, 8, 2), Vec3{}, Vec3(1, 9, 3, 7), Vec3(1, 5, 9, 4), Vec3(3, 6, 5, 2) };
+    hdsa::DynArray<Vec3>::const_iterator begin { d.cbegin() };
+
+    std::cout << "Dereference test on position 0: \n";
+    std::cout << "*begin is: " << *begin << '\n';
+    std::cout << "begin[0] is: " << begin[0] << "\n\n";
+
+    auto copy { begin++ };
+
+    std::cout << "x++ test: \n";
+    std::cout << "copy is begin++: " << *copy << '\n';
+    std::cout << "begin++ is: " << *begin << "\n\n";
+
+    ++copy;
+    ++begin;
+
+    std::cout << "++x test: \n";
+    std::cout << "++copy is: " << *copy << '\n';
+    std::cout << "++begin is: " << *begin << "\n\n";
+
+    copy--;
+    begin--;
+
+    std::cout << "x-- test: \n";
+    std::cout << "copy-- is: " << *copy << '\n';
+    std::cout << "begin-- is: " << *begin << "\n\n";
+
+    // --copy;
+    --begin;
+
+    std::cout << "--x test: \n";
+    // std::cout << "--copy is: " << *copy << '\n';
+    std::cout << "--begin is: " << *begin << "\n\n";
+
+    // ++begin;
+    // ++begin;
+    // ++begin;
+    // ++begin;
+    // ++begin;
+
+    // std::cout << "x++ out of upper bounds test: \n";
+    // std::cout << "++begin is: " << *begin << "\n\n";
+
+    begin +=1;
+
+    std::cout << "x+=1 test: \n";
+    std::cout << "begin+=1 is: " << *begin << "\n\n";
+
+    begin +=0;
+
+    std::cout << "x+=0 test: \n";
+    std::cout << "begin+=0 is: " << *begin << "\n\n";
+
+    begin -=1;
+
+    std::cout << "x-=1 test: \n";
+    std::cout << "begin-=1 is: " << *begin << "\n\n";
+
+    begin -=0;
+
+    std::cout << "x-=0 test: \n";
+    std::cout << "begin-=0 is: " << *begin << "\n\n";
+
+    begin +=4;
+
+    std::cout << "x+=4 test: \n";
+    std::cout << "begin+=4 is: " << *begin << "\n\n";
+
+    begin -=4;
+
+    std::cout << "x-=4 test: \n";
+    std::cout << "begin-=4 is: " << *begin << "\n\n";
+
+    begin = begin + 1;
+
+    std::cout << "x = x + 1 test: \n";
+    std::cout << "begin = begin + 1 is: " << *begin << "\n\n";
+
+    begin = begin + 0;
+
+    std::cout << "x = x + 0 test: \n";
+    std::cout << "begin = begin + 0 is: " << *begin << "\n\n";
+
+    begin = begin - 1;
+
+    std::cout << "x = x - 1 test: \n";
+    std::cout << "begin = begin - 1 is: " << *begin << "\n\n";
+
+    begin = begin - 0;
+
+    std::cout << "x = x - 0 test: \n";
+    std::cout << "begin = begin - 0 is: " << *begin << "\n\n";
+
+    begin = begin + 4;
+
+    std::cout << "x = x + 4 test: \n";
+    std::cout << "begin = begin + 4 is: " << *begin << "\n\n";
+
+    begin = begin - 4;
+
+    std::cout << "x = x - 4 test: \n";
+    std::cout << "begin = begin - 4 is: " << *begin << "\n\n";
+
+    ++begin;
+    std::ptrdiff_t dif { begin - copy };
+
+    std::cout << "std::ptrdiff_t x = begin - copy test: \n";
+    std::cout << "dif is: " << dif << "\n\n";
+
+    --begin;
+
+    std::cout << "x + 4 test: \n";
+    std::cout << "begin + 4 is: " << *(begin + 4) << "\n\n";
+
+    std::cout << "x test: \n";
+    std::cout << "begin now is: " << *begin << "\n\n";
+
+    std::cout << "x == y test: \n";
+    std::cout << "begin == copy is: " << (begin == copy) << "\n\n";
+
+    std::cout << "x != y test: \n";
+    std::cout << "begin != copy is: " << (begin != copy) << "\n\n";
+
+    ++begin;
+
+    std::cout << "x > y test: \n";
+    std::cout << "begin > copy is: " << (begin > copy) << "\n\n";
+
+    std::cout << "x < y test: \n";
+    std::cout << "begin < copy is: " << (begin < copy) << "\n\n";
+
+    ++copy;
+
+    std::cout << "x >= y test: \n";
+    std::cout << "begin >= copy is: " << (begin >= copy) << "\n\n";
+
+    std::cout << "x <= y test: \n";
+    std::cout << "begin <= copy is: " << (begin <= copy) << "\n\n";
+}
+
 int main()
 {
     /**
@@ -87,124 +371,11 @@ int main()
      * operator<<
     */
 
-    hdsa::DynArray<Vec3> c(3);
-    c.resize(5);
-    // c.push_back(Vec3(9, 4, 7, 1));
+    const_iterators_tests();
 
-    for (std::size_t i {}; i < c.size(); i++) { std::cout << c[i] << '\n'; }
-
-    // /*
-    //  * Loops for non-const iterator
-    //  *
-    // */
-    // std::cout << "C-style loop\n";
-    // std::cout << "c's size is: " << c.size() << '\n';
-    // for (std::size_t i {}; i < c.size(); i++)
-    // {
-    //     std::cout << c[i] << '\n';
-    // }
-
-    // std::cout << "C++ 98 style loop\n";
-    // for (auto it { c.begin() }; it != c.end(); ++it)
-    // {
-    //     std::cout << *it << '\n';
-    // }
-
-    // std::cout << "std::algorithm loop\n";
-    // std::for_each(c.begin(), c.end(), [](auto &e)
-    // {
-    //     std::cout << e << '\n';
-    // });
-
-    // std::cout << "Ranged-for loop\n";
-    // for(const auto& e: c)
-    // {
-    //     std::cout << e << '\n';
-    // }
-    // std::cout << "\n\n";
-
-
-
-    // /*
-    //  * Loops for const iterator
-    //  *
-    // */
-    // std::cout << "C-style loop\n";
-    // std::cout << "c's size is: " << c.size() << '\n';
-    // for (std::size_t i {}; i < c.size(); i++)
-    // {
-    //     std::cout << c[i] << '\n';
-    // }
-
-    // std::cout << "C++ 98 style loop\n";
-    // for (auto it { c.cbegin() }; it != c.cend(); ++it)
-    // {
-    //     std::cout << *it << '\n';
-    // }
-
-    // std::cout << "std::algorithm loop\n";
-    // std::for_each(c.cbegin(), c.cend(), [](auto &e)
-    // {
-    //     std::cout << e << '\n';
-    // });
-
-    // std::cout << "Ranged-for loop\n";
-    // for(const auto& e: c)
-    // {
-    //     std::cout << e << '\n';
-    // }
-    // std::cout << "\n\n";
-
-
-    // /*
-    //  * Loops for non-const reverse iterator
-    //  *
-    // */
-    // std::cout << "C-style loop\n";
-    // std::cout << "c's size is: " << c.size() << '\n';
-    // for (std::size_t i { c.size() }; i > 0; --i)
-    // {
-    //     std::cout << c[i - 1] << '\n';
-    // }
-
-    // std::cout << "C++ 98 style loop\n";
-    // for (auto it { c.rbegin() }; it != c.rend(); ++it)
-    // {
-    //     std::cout << *it << '\n';
-    // }
-
-    // std::cout << "std::algorithm loop\n";
-    // std::for_each(c.rbegin(), c.rend(), [](auto &e)
-    // {
-    //     std::cout << e << '\n';
-    // });
-    // std::cout << "\n\n";
-
-
-
-    // /*
-    //  * Loops for const reverse iterator
-    //  *
-    // */
-    // std::cout << "C-style loop\n";
-    // std::cout << "c's size is: " << c.size() << '\n';
-    // for (std::size_t i { c.size() }; i > 0; --i)
-    // {
-    //     std::cout << c[i - 1] << '\n';
-    // }
-
-    // std::cout << "C++ 98 style loop\n";
-    // for (auto it { c.crbegin() }; it != c.crend(); ++it)
-    // {
-    //     std::cout << *it << '\n';
-    // }
-
-    // std::cout << "std::algorithm loop\n";
-    // std::for_each(c.crbegin(), c.crend(), [](auto &e)
-    // {
-    //     std::cout << e << '\n';
-    // });
-    // std::cout << "\n\n";
+    int a { 1 };
+    int b { a++ };
+    std:: cout << "a and b are: " << a << ", " << b << '\n';
 
     return 0;
 }
