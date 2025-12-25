@@ -175,20 +175,10 @@ private:
             return Iterator { m_ptr + x };
         }
 
-        // friend Iterator operator+(const difference_type x, const Iterator& other)
-        // {
-        //     return other + x;
-        // }
-
         Iterator operator-(const difference_type x) const
         {
             return Iterator { m_ptr - x };
         }
-
-        // friend Iterator operator-(const difference_type x, const Iterator& other)
-        // {
-        //     return other - x;
-        // }
 
         difference_type operator-(const Iterator& other) const
         {
@@ -316,19 +306,9 @@ private:
             return m_ptr + x;
         }
 
-        friend ConstIterator operator+(const difference_type x, const ConstIterator& other)
-        {
-            return other + x;
-        }
-
         ConstIterator operator-(const difference_type x) const
         {
             return m_ptr - x;
-        }
-
-        friend ConstIterator operator-(const difference_type x, const ConstIterator& other)
-        {
-            return other - x;
         }
 
         difference_type operator-(const ConstIterator& other) const
@@ -457,19 +437,9 @@ private:
             return m_ptr - x;
         }
 
-        friend ReverseIterator operator+(const difference_type x, const ReverseIterator& other)
-        {
-            return other - x;
-        }
-
         ReverseIterator operator-(const difference_type x) const
         {
             return m_ptr + x;
-        }
-
-        friend ReverseIterator operator-(const difference_type x, const ReverseIterator& other)
-        {
-            return other + x;
         }
 
         difference_type operator-(const ReverseIterator& other) const
@@ -598,19 +568,9 @@ private:
             return m_ptr - x;
         }
 
-        friend ConstReverseIterator operator+(const difference_type x, const ConstReverseIterator& other)
-        {
-            return other - x;
-        }
-
         ConstReverseIterator operator-(const difference_type x) const
         {
             return m_ptr + x;
-        }
-
-        friend ConstReverseIterator operator-(const difference_type x, const ConstReverseIterator& other)
-        {
-            return other + x;
         }
 
         difference_type operator-(const ConstReverseIterator& other) const
