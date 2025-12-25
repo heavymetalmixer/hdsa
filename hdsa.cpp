@@ -58,6 +58,13 @@ struct Vec3
         out << "Vec3 { " << v3.x << ", " << v3.y << ", " << v3.z << ", " << *v3.mem << " }";
         return out;
     }
+
+        friend bool operator==(const Vec3& a, const Vec3& b)
+    {
+        if ((a.x == b.x) && (a.y == b.y) && (a.z == b.z) && (a.mem == b.mem)) { return true; }
+
+        return false;
+    }
 };
 
 void iterators_tests()
@@ -371,11 +378,12 @@ int main()
      * operator<<
     */
 
-    const_iterators_tests();
+    // const_iterators_tests();
 
-    int a { 1 };
-    int b { a++ };
-    std:: cout << "a and b are: " << a << ", " << b << '\n';
+    hdsa::DynArray<Vec3> v1 { Vec3(6, 4, 5, 2) };
+    hdsa::DynArray<Vec3> v2 { v1 };
+
+    std::cout << (v1 = v1) << '\n';
 
     return 0;
 }

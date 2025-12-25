@@ -776,24 +776,31 @@ public:
     : m_size { other.m_size },
       m_capacity { other.m_capacity }
     {
-        if (m_capacity > 0)
+        if ((*this) == other)
         {
-            mem_realloc(m_capacity);
-
-            if (!is_empty())
+            std::cout << "Both DynArrays are the same object, no copy construction will be done.\n";
+        }
+        else
+        {
+            if (m_capacity > 0)
             {
-                for (std::size_t i {}; i < m_size; i++)
+                mem_realloc(m_capacity);
+
+                if (!is_empty())
                 {
-                    new (m_first_ptr + i) T(other[i]);
+                    for (std::size_t i {}; i < m_size; i++)
+                    {
+                        new (m_first_ptr + i) T(other[i]);
+                    }
                 }
             }
+
+            std::cout << "Copy construction\n";
+
+            std::cout << "Size: " << m_capacity << '\n';
+            std::cout << "Capacity: " << m_capacity << '\n';
+            std::cout << ((!has_memory()) ? "The buffer is nullptr\n" : "The buffer has memory assigned to it\n");
         }
-
-        std::cout << "Copy construction\n";
-
-        std::cout << "Size: " << m_capacity << '\n';
-        std::cout << "Capacity: " << m_capacity << '\n';
-        std::cout << ((!has_memory()) ? "The buffer is nullptr\n" : "The buffer has memory assigned to it\n");
     }
 
     DynArray(std::initializer_list<T> other)
@@ -818,16 +825,35 @@ public:
     }
 
     DynArray(DynArray&& other) noexcept
-    : m_first_ptr { exchange_with_null(&other) },
-      m_size { exchange_size(&other) },
-      m_capacity { exchange_capacity(&other) }
     {
-        std::cout << "Move construction\n";
+        if ((*this) == other)
+        {
+            std::cout << "Both DynArrays are the same object, no move construction will be done.\n";
+        }
+        else
+        {
+            m_size = other.m_size;
+            other.m_size = 0;
+
+            m_capacity = other.m_capacity;
+            other.m_capacity = 0;
+
+            m_first_ptr = other.m_first_ptr;
+            other.m_first_ptr = nullptr;
+
+            std::cout << "Move construction\n";
+        }
     }
 
     // No reallocations unless the other DynArray object is bigger in capacity
     DynArray& operator=(const DynArray& other)
     {
+        if ((*this) == other)
+        {
+            std::cout << "Both DynArrays are the same object, no copy assignment will be done.\n";
+            return *this;
+        }
+
         for (std::size_t i {}; i < m_size; i++)
         {
             m_first_ptr[i].~T();
@@ -893,6 +919,12 @@ public:
 
     DynArray& operator=(DynArray&& other) noexcept
     {
+        if ((*this) == other)
+        {
+            std::cout << "Both DynArrays are the same object, no move assignment will be done.\n";
+            return *this;
+        }
+
         for (std::size_t i {}; i < m_size; i++)
         {
             m_first_ptr[i].~T();
@@ -1328,6 +1360,20 @@ public:
         out << dyn[dyn.size() - 1] << " }\n\n";
 
         return out;
+    }
+
+    friend bool operator==(const DynArray<T>& a, const DynArray<T>& b)
+    {
+        if ((a.m_first_ptr == b.m_first_ptr) && (a.m_capacity == b.m_capacity) && (a.m_size == b.m_size)) { return true; }
+
+        return false;
+    }
+
+    friend bool operator!=(const DynArray<T>& a, const DynArray<T>& b)
+    {
+        if ((a.m_first_ptr != b.m_first_ptr) || (a.m_capacity != b.m_capacity) || (a.m_size != b.m_size)) { return true; }
+
+        return false;
     }
 
     iterator begin()
