@@ -1,5 +1,5 @@
-#ifndef DYN_ARRAY_HPP
-#define DYN_ARRAY_HPP
+#ifndef HDSA_DYN_ARRAY_HPP
+#define HDSA_DYN_ARRAY_HPP
 
 #include <cstddef>
 #include <limits>
@@ -693,21 +693,6 @@ private:
         m_first_ptr = new_buffer;
     }
 
-    // It increases the memory used by a factor of 2 for when the DynArray is full, or
-    // just 1 block of memory of size of T if the DynArray had no memory at all
-    void grow_by_2()
-    {
-        if (m_capacity == 0)
-        {
-            mem_realloc(1);
-            return;
-        }
-
-        mem_realloc(m_capacity * 2);
-
-        std::cout << "Growing the size.\n";
-    }
-
     // It changes old_ptr with nullptr and returns the previous value of old_ptr. It doesn't handle resources
     T* exchange_with_null(DynArray* old_object)
     {
@@ -1078,7 +1063,7 @@ public:
         if (is_full())
         {
             std::cout << "The DynArray is full. Growing it up.\n";
-            grow_by_2();
+            mem_realloc(m_capacity * 2);
         }
 
         new (m_first_ptr + m_size) T(t);
@@ -1104,7 +1089,7 @@ public:
         if (is_full())
         {
             std::cout << "The DynArray is full. Growing it up.\n";
-            grow_by_2();
+            mem_realloc(m_capacity * 2);
         }
 
         new (m_first_ptr + m_size) T(std::move_if_noexcept(t));
@@ -1126,7 +1111,7 @@ public:
         if (is_full())
         {
             std::cout << "The DynArray is full. Growing it up.\n";
-            grow_by_2();
+            mem_realloc(m_capacity * 2);
         }
 
         new (m_first_ptr + m_size) T(std::forward<Args>(args)...);
@@ -1435,4 +1420,4 @@ public:
 
 } // namespace hdsa end
 
-#endif // DYN_ARRAY_HPP
+#endif // HDSA_DYN_ARRAY_HPP

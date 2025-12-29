@@ -381,9 +381,8 @@ int main()
     // const_iterators_tests();
 
     hdsa::DynArray<Vec3> v1 { Vec3(6, 4, 5, 2) };
-    hdsa::DynArray<Vec3> v2 { v1 };
-
-    std::cout << (v1 = v1) << '\n';
+    hdsa::DynArray<Vec3> v2 {};
+    memcpy(&v2, &v1, sizeof(hdsa::DynArray<Vec3>));
 
     return 0;
 }
