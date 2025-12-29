@@ -1302,7 +1302,6 @@ public:
 
         for (std::size_t i {}; i < m_size; i++)
         {
-            m_first_ptr[i].~T();
             new (m_first_ptr + i) T();
         }
     }
