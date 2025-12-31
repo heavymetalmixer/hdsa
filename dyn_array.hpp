@@ -628,11 +628,7 @@ private:
     {
         if (!has_memory())
         {
-            if (element_amount == 0)
-            {
-                std::cout << "The amounts of element to get memory for is 0 and there's no allocated buffer, so the buffer won't change.\n";
-                return;
-            }
+            BASIC_ASSERT((element_amount > 0), "The amounts of element to get memory for is 0 and there's no allocated buffer, so the buffer won't change.\n");
 
             m_capacity = element_amount;
             m_first_ptr = static_cast<T*>(::operator new(m_capacity * sizeof(T)));
@@ -872,6 +868,8 @@ public:
     // No reallocations unless the other's size is bigger than the DynArray's capacity
     DynArray& operator=(std::initializer_list<T> other)
     {
+        BASIC_ASSERT((other.size() > 0), "The size of the initializer list of T to copy must be bigger than 0.\n");
+
         for (std::size_t i {}; i < m_size; i++)
         {
             m_first_ptr[i].~T();
@@ -1046,11 +1044,7 @@ public:
 
     void push_back(const T& t)
     {
-        if (m_size == std::numeric_limits<std::size_t>::max())
-        {
-            std::cout << "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be added.\n";
-            return;
-        }
+        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be pushed.\n");
 
         if (!has_memory())
         {
@@ -1072,11 +1066,7 @@ public:
 
     void push_back(T&& t)
     {
-        if (m_size == std::numeric_limits<std::size_t>::max())
-        {
-            std::cout << "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be added.\n";
-            return;
-        }
+        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be pushed.\n");
 
         if (!has_memory())
         {
@@ -1101,7 +1091,7 @@ public:
     template<typename... Args>
     T& emplace_back(Args&&... args)
     {
-        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be added.\n");
+        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be emplaced.\n");
 
         if (!has_memory())
         {
@@ -1124,14 +1114,176 @@ public:
 
     void pop_back()
     {
-        if (is_empty())
-        {
-            std::cout << "The DynArray is already empty, no elements will be popped out.\n";
-            return;
-        }
+        BASIC_ASSERT((!is_empty()), "The DynArray is already empty, no elements will be popped out.\n");
 
         m_size--;
         m_first_ptr[m_size].~T();
+    }
+
+    // Copies "element" at the "position" (starting from 0) and moves the following T objects 1 position above
+    void insert_single(std::size_t position, const T& element)
+    {
+        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
+        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
+        BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
+
+        if (is_full())
+        {
+            mem_realloc(m_capacity * 2);
+        }
+
+        m_size += 1;
+
+        for (std::size_t i { m_size - 1 }; i > position; i--)
+        {
+            new(m_first_ptr + i) T(std::move_if_noexcept(m_first_ptr[i - 1]));
+            m_first_ptr[i - 1].~T();
+        }
+
+        new(m_first_ptr + position) T(element);
+    }
+
+    // Moves "element" at the "position" (starting from 0) and moves the following T objects 1 position above
+    void insert_single(std::size_t position, T&& element)
+    {
+        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
+        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
+        BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
+
+        if (is_full())
+        {
+            mem_realloc(m_capacity * 2);
+        }
+
+        m_size += 1;
+
+        for (std::size_t i { m_size - 1 }; i > position; i--)
+        {
+            new(m_first_ptr + i) T(std::move_if_noexcept(m_first_ptr[i - 1]));
+            m_first_ptr[i - 1].~T();
+        }
+
+        new(m_first_ptr + position) T(std::move_if_noexcept(element));
+    }
+
+    template<typename... Args>
+    void insert_emplace(std::size_t position, Args&&... args)
+    {
+        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be emplaced.\n");
+        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
+        BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
+
+        if (is_full())
+        {
+            mem_realloc(m_capacity * 2);
+        }
+
+        m_size += 1;
+
+        for (std::size_t i { m_size - 1 }; i > position; i--)
+        {
+            new(m_first_ptr + i) T(std::move_if_noexcept(m_first_ptr[i - 1]));
+            m_first_ptr[i - 1].~T();
+        }
+
+        new (m_first_ptr + position) T(std::forward<Args>(args)...);
+    }
+
+    // Copies "element" "amount" times starting at "position" (starting from 0) and moves the following T objects also "amount" positions above
+    void insert_multiple(std::size_t position, std::size_t amount, const T& element)
+    {
+        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
+        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
+        BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
+        BASIC_ASSERT((amount > 0), "The amount of elements to insert must be bigger than 0.\n");
+
+        if ((m_size + amount) > m_capacity)
+        {
+            mem_realloc(((m_capacity * 2) >= (m_size + amount)) ? m_capacity * 2 : m_size + amount);
+        }
+
+        m_size += amount;
+
+        for (std::size_t i { m_size - 1 }; i >= (position + amount); i--)
+        {
+            new(m_first_ptr + i) T(std::move_if_noexcept(m_first_ptr[i - amount]));
+            m_first_ptr[i - amount].~T();
+        }
+
+        for (std::size_t i { position }; i < (position + amount); i++)
+        {
+            new(m_first_ptr + i) T(element);
+        }
+    }
+
+    // Copies each element from the std::initializer_list<T> a certain "amount" times starting at "position" (starting from 0)
+    // and moves the following T objects also "amount" positions above
+    void insert_list(std::size_t position, std::initializer_list<T> list)
+    {
+        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
+        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
+        BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
+
+        std::size_t amount { list.size() };
+        BASIC_ASSERT((amount > 0), "The amount of elements in the initializer list to insert must be bigger than 0.\n");
+
+        if ((m_size + amount) > m_capacity)
+        {
+            mem_realloc(((m_capacity * 2) >= (m_size + amount)) ? m_capacity * 2 : m_size + amount);
+        }
+
+        m_size += amount;
+
+        for (std::size_t i { m_size - 1 }; i >= (position + amount); i--)
+        {
+            new(m_first_ptr + i) T(std::move_if_noexcept(m_first_ptr[i - amount]));
+            m_first_ptr[i - amount].~T();
+        }
+
+        std::size_t j { 0 };
+        for (std::size_t i { position }; i < (position + amount); i++)
+        {
+            new(m_first_ptr + i) T(list.begin()[j]);
+            ++j;
+        }
+    }
+
+    void erase_single(std::size_t position)
+    {
+        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, no element can be deleted.\n");
+        BASIC_ASSERT((position < m_size), "The specified position is bigger than the DynArray's size.\n");
+
+        m_first_ptr[position].~T();
+
+        for (std::size_t i { position + 1 }; i < m_size ; i++)
+        {
+            new(m_first_ptr + (i - 1)) T(std::move_if_noexcept(m_first_ptr[i]));
+            m_first_ptr[i].~T();
+        }
+
+        m_size -= 1;
+    }
+
+    void erase_multiple(std::size_t beginning, std::size_t end)
+    {
+        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, no elements can be deleted.\n");
+        BASIC_ASSERT(((beginning < m_size) && (end < m_size)), "The deletion range goes above the DynArray's size.\n");
+        BASIC_ASSERT((beginning <= end), "Beginning is bigger than end, no elements will be deleted.\n");
+
+        std::size_t deletion_range { (end - beginning) + 1 };
+
+        for (std::size_t i { beginning }; i <= end; i++)
+        {
+            m_first_ptr[i].~T();
+        }
+
+        for (std::size_t i { end + 1 }; i < m_size ; i++)
+        {
+            new(m_first_ptr + (i - deletion_range)) T(std::move_if_noexcept(m_first_ptr[i]));
+            m_first_ptr[i].~T();
+        }
+
+        m_size -= deletion_range;
     }
 
     // Changes the size of the DynArray and creates default-constructed T objects if element_amount
@@ -1230,19 +1382,8 @@ public:
     // position can go from 0 to (size() - 1)
     void reset_single(std::size_t position)
     {
-        BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
-
-        if (!has_memory())
-        {
-            std::cout << "There's no buffer, so no elements can be reset.\n";
-            return;
-        }
-
-        if (position >= m_size)
-        {
-            std::cout << "The element to delete is on a position bigger than the size of the DynArray.\n";
-            return;
-        }
+        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, no element will be reset.\n");
+        BASIC_ASSERT((position < m_size), "The position is bigger than the size of the DynArray, no element will be reset.\n");
 
         m_first_ptr[position].~T();
         new (m_first_ptr + position) T();
@@ -1252,25 +1393,9 @@ public:
     // The range for both parameters can go from 0 to (size() - 1), and using the same number for both resets only one T object
     void reset_multiple(std::size_t beginning, std::size_t end)
     {
-        BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
-
-        if (!has_memory())
-        {
-            std::cout << "There's no buffer, so no elements can be reset.\n";
-            return;
-        }
-
-        if (end >= m_size)
-        {
-            std::cout << "The last element to delete is on a position bigger than the size of the DynArray.\n";
-            return;
-        }
-
-        if (beginning > end)
-        {
-            std::cout << "The first position is bigger than the second one. Nothing will be done\n";
-            return;
-        }
+        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, no elements will be reset.\n");
+        BASIC_ASSERT(((beginning < m_size) && (end < m_size)), "The reset range goes above the size of the DynArray.\n");
+        BASIC_ASSERT((beginning <= end), "Beginning is bigger than end, no elements will be reset.\n");
 
         for (std::size_t i { beginning }; i <= end; i++)
         {
@@ -1282,19 +1407,9 @@ public:
     // It deletes all the elements in the DynArray, and replaces them with default-initialized T objects
     void reset_all()
     {
+        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, no elements will be reset.\n");
         BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
-
-        if (!has_memory())
-        {
-            std::cout << "There's no buffer, so no elements can be reset.\n";
-            return;
-        }
-
-        if (m_size == 0)
-        {
-            std::cout << "The DynArray is empty, no elements can be reset.\n";
-            return;
-        }
+        BASIC_ASSERT((m_size > 0), "The DynArray is empty, no elements can be reset.\n");
 
         std::size_t temp_size { m_size };
         destroy_all();
@@ -1328,11 +1443,7 @@ public:
 
     friend std::ostream& operator <<(std::ostream& out, const DynArray& dyn)
     {
-        if (dyn.is_empty())
-        {
-            out << "The DynArray is empty, cannot print any elements.\n";
-            return out;
-        }
+        BASIC_ASSERT((!dyn.is_empty()), "The DynArray is empty, cannot print any elements.\n");
 
         out << "DynArray { ";
 
