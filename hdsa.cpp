@@ -1,7 +1,8 @@
-#include "dyn_array.hpp"
 #include <vector>
 #include <string>
 #include <algorithm>
+#include "dyn_array.hpp"
+// #include "pmr.hpp"
 
 struct Vec3
 {
@@ -381,7 +382,6 @@ int main()
     // const_iterators_tests();
 
     hdsa::DynArray<Vec3> v1 {};
-    Vec3 v {};
     v1.erase_multiple(0ull, 2ull);
 
     std::cout << v1 << '\n';

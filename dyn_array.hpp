@@ -10,7 +10,7 @@
 #include <iostream>
 #include <utility>
 #include <initializer_list>
-#include <source_location>
+#include "asserts.hpp"
 
 /**
  * Personal implementation of a Dynamic Array. It uses ::operator new for memory allocation
@@ -21,46 +21,16 @@
  * TODO:
  * 1) Test everything, as much as possible.
  * 2) Write the code for the copy and move constructors and operators. DONE!
- * 3) Add the possibility to pass arguments to the T constructors, so they can be constructed in other ways than just default.
- * 4) Investigate about "iterators" and implement them if necessary, that include "const interators". DONE!
- * 5) Investigate about how to make the dynamic arrays retain "pointer stability" for reallocation operations. NOT POSSIBLE!
- * 6) Integrate custom allocators. This implementation is already using placement new and delete to allocate memory without calling constructors nor destructors.
- * 7) Investigate about how "emplace_back" works in std::vector and in-place construction does as well in general, so it can be implemented here. DONE!
- * 8) Look what other std::vector features could be good to have here.
- * 9) Choose which asserts should be changed for exceptions.
- * 10) Investigate about how to construct with Initializer Lists and how to combine it with In-place Construction. DONE!
- * 11) Investigate (later on, not for now) about C++ 20 ranges and see how to implement them here.
- * 12) Investigate about array slicing and see if it can be implemented here.
+ * 3) Investigate about "iterators" and implement them if necessary, that include "const interators". DONE!
+ * 4) Investigate about how to make the dynamic arrays retain "pointer stability" for reallocation operations. NOT POSSIBLE!
+ * 5) Integrate custom allocators. This implementation is already using placement new and delete to allocate memory without calling constructors nor destructors.
+ * 6) Investigate about how "emplace_back" works in std::vector and in-place construction does as well in general, so it can be implemented here. DONE!
+ * 7) Look what other std::vector features could be good to have here.
+ * 8) Choose which asserts should be changed for exceptions.
+ * 9) Investigate about how to construct with Initializer Lists and how to combine it with In-place Construction. DONE!
+ * 10) Investigate (later on, not for now) about C++ 20 ranges and see how to implement them here.
+ * 11) Investigate about array slicing and see if it can be implemented here.
 */
-
-// I don't like that C asserts don't work on Release builds so I made this one for the same purpose
-// If you compare 2 or more values/variables for the "condition", make sure to wrap them in parenthesis
-// like this: BASIC_ASSERT((1 > 2), "1 is smaller than 2\n")
-// #define BASIC_ASSERT(condition, message)                    \
-// if (!condition)                                             \
-// {                                                           \
-//     std::cerr                                               \
-//         << "Assertion failed: " << message << '\n'          \
-//         << "  Condition: " << #condition << '\n'            \
-//         << "  File: " << __FILE__ << '\n'                   \
-//         << "  Function: " << __func__ << '\n'               \
-//         << "  Line: " << __LINE__ << '\n';                  \
-//     std::abort();                                           \
-// }                                                           \
-
-#define BASIC_ASSERT(condition, message)                    \
-if (!condition)                                             \
-{                                                           \
-    auto loc { std::source_location::current() };           \
-    std::cerr                                               \
-        << "\n\nAssertion failed: " << message << '\n'      \
-        << "  Condition: " << #condition << '\n'            \
-        << "  File: " << loc.file_name() << '\n'            \
-        << "  Function: " << loc.function_name() << '\n'    \
-        << "  Line: " << loc.line() << '\n'                 \
-        << "  Column: " << loc.column() << '\n';            \
-    std::abort();                                           \
-}                                                           \
 
 namespace hdsa
 {
@@ -628,7 +598,7 @@ private:
     {
         if (!has_memory())
         {
-            BASIC_ASSERT((element_amount > 0), "The amounts of element to get memory for is 0 and there's no allocated buffer, so the buffer won't change.\n");
+            HDSA_BASIC_ASSERT((element_amount > 0), "The amounts of element to get memory for is 0 and there's no allocated buffer, so the buffer won't change.\n");
 
             m_capacity = element_amount;
             m_first_ptr = static_cast<T*>(::operator new(m_capacity * sizeof(T)));
@@ -868,7 +838,7 @@ public:
     // No reallocations unless the other's size is bigger than the DynArray's capacity
     DynArray& operator=(std::initializer_list<T> other)
     {
-        BASIC_ASSERT((other.size() > 0), "The size of the initializer list of T to copy must be bigger than 0.\n");
+        HDSA_BASIC_ASSERT((other.size() > 0), "The size of the initializer list of T to copy must be bigger than 0.\n");
 
         for (std::size_t i {}; i < m_size; i++)
         {
@@ -960,7 +930,7 @@ public:
 
     bool is_full() const noexcept
     {
-        BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
+        HDSA_BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
 
         return ((!is_empty()) && (m_size == m_capacity));
     }
@@ -986,44 +956,44 @@ public:
     // It works the same as operator[] but it has bounds checking
     T& at_checked(const std::size_t position)
     {
-        BASIC_ASSERT(!(is_empty()), "The DynArray is empty, you can't get elements from it.\n");
-        BASIC_ASSERT((position < m_size), "The position must be a positive number and not bigger than the size of the DynArray.\n");
+        HDSA_BASIC_ASSERT(!(is_empty()), "The DynArray is empty, you can't get elements from it.\n");
+        HDSA_BASIC_ASSERT((position < m_size), "The position must be a positive number and not bigger than the size of the DynArray.\n");
 
         return m_first_ptr[position];
     }
 
     const T& at_checked(const std::size_t position) const
     {
-        BASIC_ASSERT(!(is_empty()), "The DynArray is empty, you can't get elements from it.\n");
-        BASIC_ASSERT((position < m_size), "The position must be a positive number and not bigger than the size of the DynArray.\n");
+        HDSA_BASIC_ASSERT(!(is_empty()), "The DynArray is empty, you can't get elements from it.\n");
+        HDSA_BASIC_ASSERT((position < m_size), "The position must be a positive number and not bigger than the size of the DynArray.\n");
 
         return m_first_ptr[position];
     }
 
     T& first()
     {
-        BASIC_ASSERT(!is_empty(), "The DynArray is empty, you can't get the first element.\n");
+        HDSA_BASIC_ASSERT(!is_empty(), "The DynArray is empty, you can't get the first element.\n");
 
         return m_first_ptr[0];
     }
 
     const T& first() const
     {
-        BASIC_ASSERT(!is_empty(), "The DynArray is empty, you can't get the first element.\n");
+        HDSA_BASIC_ASSERT(!is_empty(), "The DynArray is empty, you can't get the first element.\n");
 
         return m_first_ptr[0];
     }
 
     T& last()
     {
-        BASIC_ASSERT(!is_empty(), "The DynArray is empty, you can't get the last element.\n");
+        HDSA_BASIC_ASSERT(!is_empty(), "The DynArray is empty, you can't get the last element.\n");
 
         return m_first_ptr[m_size - 1];
     }
 
     const T& last() const
     {
-        BASIC_ASSERT(!is_empty(), "The DynArray is empty, you can't get the last element.\n");
+        HDSA_BASIC_ASSERT(!is_empty(), "The DynArray is empty, you can't get the last element.\n");
 
         return m_first_ptr[m_size - 1];
     }
@@ -1031,7 +1001,7 @@ public:
     // Increases the buffer and capacity
     void reserve_memory(std::size_t element_amount)
     {
-        BASIC_ASSERT((capacity() < std::numeric_limits<std::size_t>::max()), "The DynArray has a capacity that matches the limit of std::size_t, so it cannot grow any further.\n");
+        HDSA_BASIC_ASSERT((capacity() < std::numeric_limits<std::size_t>::max()), "The DynArray has a capacity that matches the limit of std::size_t, so it cannot grow any further.\n");
 
         if (element_amount <= m_capacity)
         {
@@ -1044,7 +1014,7 @@ public:
 
     void push_back(const T& t)
     {
-        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be pushed.\n");
+        HDSA_BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be pushed.\n");
 
         if (!has_memory())
         {
@@ -1066,7 +1036,7 @@ public:
 
     void push_back(T&& t)
     {
-        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be pushed.\n");
+        HDSA_BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be pushed.\n");
 
         if (!has_memory())
         {
@@ -1091,7 +1061,7 @@ public:
     template<typename... Args>
     T& emplace_back(Args&&... args)
     {
-        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be emplaced.\n");
+        HDSA_BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be emplaced.\n");
 
         if (!has_memory())
         {
@@ -1114,7 +1084,7 @@ public:
 
     void pop_back()
     {
-        BASIC_ASSERT((!is_empty()), "The DynArray is already empty, no elements will be popped out.\n");
+        HDSA_BASIC_ASSERT((!is_empty()), "The DynArray is already empty, no elements will be popped out.\n");
 
         m_size--;
         m_first_ptr[m_size].~T();
@@ -1123,9 +1093,9 @@ public:
     // Copies "element" at the "position" (starting from 0) and moves the following T objects 1 position above
     void insert_single(std::size_t position, const T& element)
     {
-        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
-        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
-        BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
+        HDSA_BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
+        HDSA_BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
 
         if (is_full())
         {
@@ -1146,9 +1116,9 @@ public:
     // Moves "element" at the "position" (starting from 0) and moves the following T objects 1 position above
     void insert_single(std::size_t position, T&& element)
     {
-        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
-        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
-        BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
+        HDSA_BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
+        HDSA_BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
 
         if (is_full())
         {
@@ -1169,9 +1139,9 @@ public:
     template<typename... Args>
     void insert_emplace(std::size_t position, Args&&... args)
     {
-        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be emplaced.\n");
-        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
-        BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
+        HDSA_BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be emplaced.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
+        HDSA_BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
 
         if (is_full())
         {
@@ -1192,10 +1162,10 @@ public:
     // Copies "element" "amount" times starting at "position" (starting from 0) and moves the following T objects also "amount" positions above
     void insert_multiple(std::size_t position, std::size_t amount, const T& element)
     {
-        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
-        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
-        BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
-        BASIC_ASSERT((amount > 0), "The amount of elements to insert must be bigger than 0.\n");
+        HDSA_BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
+        HDSA_BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
+        HDSA_BASIC_ASSERT((amount > 0), "The amount of elements to insert must be bigger than 0.\n");
 
         if ((m_size + amount) > m_capacity)
         {
@@ -1220,12 +1190,12 @@ public:
     // and moves the following T objects also "amount" positions above
     void insert_list(std::size_t position, std::initializer_list<T> list)
     {
-        BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
-        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
-        BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
+        HDSA_BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
+        HDSA_BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
 
         std::size_t amount { list.size() };
-        BASIC_ASSERT((amount > 0), "The amount of elements in the initializer list to insert must be bigger than 0.\n");
+        HDSA_BASIC_ASSERT((amount > 0), "The amount of elements in the initializer list to insert must be bigger than 0.\n");
 
         if ((m_size + amount) > m_capacity)
         {
@@ -1250,8 +1220,8 @@ public:
 
     void erase_single(std::size_t position)
     {
-        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, no element can be deleted.\n");
-        BASIC_ASSERT((position < m_size), "The specified position is bigger than the DynArray's size.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no buffer, no element can be deleted.\n");
+        HDSA_BASIC_ASSERT((position < m_size), "The specified position is bigger than the DynArray's size.\n");
 
         m_first_ptr[position].~T();
 
@@ -1266,9 +1236,9 @@ public:
 
     void erase_multiple(std::size_t beginning, std::size_t end)
     {
-        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, no elements can be deleted.\n");
-        BASIC_ASSERT(((beginning < m_size) && (end < m_size)), "The deletion range goes above the DynArray's size.\n");
-        BASIC_ASSERT((beginning <= end), "Beginning is bigger than end, no elements will be deleted.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no buffer, no elements can be deleted.\n");
+        HDSA_BASIC_ASSERT(((beginning < m_size) && (end < m_size)), "The deletion range goes above the DynArray's size.\n");
+        HDSA_BASIC_ASSERT((beginning <= end), "Beginning is bigger than end, no elements will be deleted.\n");
 
         std::size_t deletion_range { (end - beginning) + 1 };
 
@@ -1291,7 +1261,7 @@ public:
     // It will reallocate if element_ammount is bigger than the capacity of the DynArray
     void resize(std::size_t element_amount)
     {
-        BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
+        HDSA_BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
 
         if (element_amount == 0)
         {
@@ -1327,7 +1297,7 @@ public:
     // It will reallocate if element_ammount is bigger than the capacity of the DynArray
     void resize(std::size_t element_amount, const T& value)
     {
-        BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
+        HDSA_BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
 
         if (element_amount == 0)
         {
@@ -1361,7 +1331,7 @@ public:
     // Makes a reallocation to use a new smaller buffer just big enough to fit all the existing elements
     void shrink_to_size()
     {
-        BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
+        HDSA_BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
 
         if (m_size == 0)
         {
@@ -1382,8 +1352,8 @@ public:
     // position can go from 0 to (size() - 1)
     void reset_single(std::size_t position)
     {
-        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, no element will be reset.\n");
-        BASIC_ASSERT((position < m_size), "The position is bigger than the size of the DynArray, no element will be reset.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no buffer, no element will be reset.\n");
+        HDSA_BASIC_ASSERT((position < m_size), "The position is bigger than the size of the DynArray, no element will be reset.\n");
 
         m_first_ptr[position].~T();
         new (m_first_ptr + position) T();
@@ -1393,9 +1363,9 @@ public:
     // The range for both parameters can go from 0 to (size() - 1), and using the same number for both resets only one T object
     void reset_multiple(std::size_t beginning, std::size_t end)
     {
-        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, no elements will be reset.\n");
-        BASIC_ASSERT(((beginning < m_size) && (end < m_size)), "The reset range goes above the size of the DynArray.\n");
-        BASIC_ASSERT((beginning <= end), "Beginning is bigger than end, no elements will be reset.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no buffer, no elements will be reset.\n");
+        HDSA_BASIC_ASSERT(((beginning < m_size) && (end < m_size)), "The reset range goes above the size of the DynArray.\n");
+        HDSA_BASIC_ASSERT((beginning <= end), "Beginning is bigger than end, no elements will be reset.\n");
 
         for (std::size_t i { beginning }; i <= end; i++)
         {
@@ -1407,9 +1377,9 @@ public:
     // It deletes all the elements in the DynArray, and replaces them with default-initialized T objects
     void reset_all()
     {
-        BASIC_ASSERT((has_memory()), "The DynArray has no buffer, no elements will be reset.\n");
-        BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
-        BASIC_ASSERT((m_size > 0), "The DynArray is empty, no elements can be reset.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no buffer, no elements will be reset.\n");
+        HDSA_BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
+        HDSA_BASIC_ASSERT((m_size > 0), "The DynArray is empty, no elements can be reset.\n");
 
         std::size_t temp_size { m_size };
         destroy_all();
@@ -1425,7 +1395,7 @@ public:
     // Also, it sets size and capacity to 0, and deallocates the buffer
     void reset_array()
     {
-        BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
+        HDSA_BASIC_ASSERT((m_size <= m_capacity), "The size of the DynArray is bigger than its capacity!\n");
 
         if (!is_empty())
         {
@@ -1443,7 +1413,7 @@ public:
 
     friend std::ostream& operator <<(std::ostream& out, const DynArray& dyn)
     {
-        BASIC_ASSERT((!dyn.is_empty()), "The DynArray is empty, cannot print any elements.\n");
+        HDSA_BASIC_ASSERT((!dyn.is_empty()), "The DynArray is empty, cannot print any elements.\n");
 
         out << "DynArray { ";
 
@@ -1473,56 +1443,56 @@ public:
 
     iterator begin()
     {
-        BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
 
         return iterator(m_first_ptr);
     }
 
     iterator end()
     {
-        BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
 
         return iterator(m_first_ptr + m_size);
     }
 
     const_iterator cbegin()
     {
-        BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
 
         return const_iterator(m_first_ptr);
     }
 
     const_iterator cend()
     {
-        BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
 
         return const_iterator(m_first_ptr + m_size);
     }
 
     reverse_iterator rbegin()
     {
-        BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
 
         return reverse_iterator(m_first_ptr + (m_size - 1));
     }
 
     reverse_iterator rend()
     {
-        BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
 
         return reverse_iterator(m_first_ptr - 1);
     }
 
     const_reverse_iterator crbegin()
     {
-        BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
 
         return const_reverse_iterator(m_first_ptr + (m_size - 1));
     }
 
     const_reverse_iterator crend()
     {
-        BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
+        HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no memory assigned to it, no iterators can be made from it.\n");
 
         return const_reverse_iterator(m_first_ptr - 1);
     }
