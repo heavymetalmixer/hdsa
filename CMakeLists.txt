@@ -40,7 +40,7 @@ option(BUILD_SHARED_LIBS "Enable compilation of shared/dynamic libraries" OFF)
 option(ENABLE_TESTING "Enable testing builds" OFF)
 
 set(SOURCE_FILES
-    hdsa.cpp)
+    src/hdsa.cpp)
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 # set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_CURRENT_SOURCE_DIR})
