@@ -6,6 +6,7 @@
 #include <cstring>
 #include <cassert>
 #include <iostream>
+#include <type_traits>
 #include <new>
 #include <utility>
 #include <limits>
@@ -16,14 +17,42 @@
 namespace hdsa
 {
 
+/**
+ * Returns true if a struct/class is POD
+ * Now, the term "POD" was deprecated from the C++ 20 because it has changed
+ * many times since 2003, but the one thing that always remained is that a
+ * "POD struct" must be a C struct in terms of the assembly code it compiles
+ * to(just data without initialization), plus being able to declare static
+ * variables inside of it, being able to use member functions that aren't
+ * constructors, and being able to do operator overloads except operator= .
+ * So, this templated function is here for you to determine if a struct is
+ * POD, so you have an easier time making code compatible for other languages
+ * (not just C) or if you don't wanna deal with many of the different
+ * intricate rules of C++ and preffer a more C-like style for writting code.
+ */
+template<typename T>
+bool is_pod()
+{
+    return
+    std::is_standard_layout_v<T> &&
+    std::is_trivially_default_constructible_v<T> &&
+    std::is_trivially_copyable_v<T> &&
+    std::is_trivially_copy_constructible_v<T> &&
+    std::is_trivially_copy_assignable_v<T> &&
+    std::is_trivially_move_constructible_v<T> &&
+    std::is_trivially_move_assignable_v<T> &&
+    std::is_trivially_destructible_v<T>;
+}
+
+
 // If x isn't some power of 2, then increase it until it becomes a power of 2
-uint32_t round_pow_two(uint32_t x)
+std::size_t round_pow_two(std::size_t x)
 {
     if (x == 0) { return 1; }
 
     if (x == 1) { return x; }
 
-    uint32_t i { 1 };
+    std::size_t i { 1 };
 
     while(i < x)
     {
@@ -82,7 +111,7 @@ struct Linear_mem_resource : public std::pmr::memory_resource
         //     arena_buffer_length = buffer_size;
         // }
 
-        assert(buffer != nullptr && "The buffer is empty!\n");
+        HDSA_BASIC_ASSERT((buffer != nullptr), "The buffer is empty!\n");
 
         std::cout << "An Arena memory resource was created, and a buffer of " << buffer_length << " bytes was assigned to it\n";
     };
@@ -117,13 +146,13 @@ struct Linear_mem_resource : public std::pmr::memory_resource
     {
         uintptr_t p, a, modulo;
 
-        // If aligment isn't a power of 2, increase it up to the next power of 2
+        // If alignment isn't a power of 2, increase it up to the next power of 2
         if ((alignment & (alignment - 1)) == 0 )
         {
-            alignment = static_cast<std::size_t>(round_pow_two(alignment));
+            alignment = round_pow_two(alignment);
         }
 
-        //assert((alignment & (alignment - 1)) == 0 && "The aligment provided isn't a power of 2!\n");
+        //HDSA_BASIC_ASSERT(((alignment & (alignment - 1)) == 0), "The alignment provided isn't a power of 2!\n");
 
         p = ptr;
         a = static_cast<uintptr_t>(alignment);
@@ -192,7 +221,7 @@ struct Linear_mem_resource : public std::pmr::memory_resource
 
         if ((alignment & (alignment - 1)) == 0 )
         {
-            alignment = static_cast<std::size_t>(round_pow_two(alignment));
+            alignment = round_pow_two(alignment);
         }
 
         if (old_mem == nullptr || old_size == 0)
@@ -301,13 +330,13 @@ struct Stack_resource : public std::pmr::memory_resource
     {
         uintptr_t p, a, modulo, padding, needed_space;
 
-        // If aligment isn't a power of 2, increase it up to the next power of 2
+        // If alignment isn't a power of 2, increase it up to the next power of 2
         if ((alignment & (alignment - 1)) == 0 )
         {
-            alignment = static_cast<std::size_t>(round_pow_two(alignment));
+            alignment = round_pow_two(alignment);
         }
 
-        //assert((alignment & (alignment - 1)) == 0 && "The aligment provided isn't a power of 2!\n");
+        //HDSA_BASIC_ASSERT(((alignment & (alignment - 1)) == 0), "The alignment provided isn't a power of 2!\n");
 
         p = ptr;
         a = static_cast<uintptr_t>(alignment);

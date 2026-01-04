@@ -21,7 +21,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-v -fdiagnostics-color=always -m64 -O0 -g3 -Wall -Wex
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-v -fdiagnostics-color=always -m64 -O2 -g3 -Wall -Wextra -Wconversion -Warith-conversion -Wsign-conversion -Wsign-compare -Wuninitialized -Wunused -Wunused-parameter -Wshadow -Wpedantic -std=c++${CMAKE_CXX_STANDARD}" CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS_RELEASE "-v -fdiagnostics-color=always -m64 -DNDEBUG -O3 -g0 -Wall -Wextra -Wconversion -Warith-conversion -Wsign-conversion -Wsign-compare -Wuninitialized -Wunused -Wunused-parameter -Wshadow -Wpedantic -std=c++${CMAKE_CXX_STANDARD}" CACHE STRING "" FORCE)
 
-project(HDSA VERSION 0.0.1 LANGUAGES CXX)
+project(HDSA VERSION 0.0.2 LANGUAGES CXX)
 
 # If the user doesn't provide a build type, choose Debug by default
 if (NOT CMAKE_BUILD_TYPE)

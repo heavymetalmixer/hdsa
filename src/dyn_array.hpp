@@ -1001,7 +1001,7 @@ public:
     // Increases the buffer and capacity
     void reserve_memory(std::size_t element_amount)
     {
-        HDSA_BASIC_ASSERT((capacity() < std::numeric_limits<std::size_t>::max()), "The DynArray has a capacity that matches the limit of std::size_t, so it cannot grow any further.\n");
+        HDSA_BASIC_ASSERT((capacity() <= std::numeric_limits<std::size_t>::max() - element_amount), "The DynArray has a capacity that matches the limit of std::size_t, so it cannot grow any further.\n");
 
         if (element_amount <= m_capacity)
         {
@@ -1014,7 +1014,7 @@ public:
 
     void push_back(const T& t)
     {
-        HDSA_BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be pushed.\n");
+        HDSA_BASIC_ASSERT((m_size <= std::numeric_limits<std::size_t>::max() - 1), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be pushed.\n");
 
         if (!has_memory())
         {
@@ -1036,7 +1036,7 @@ public:
 
     void push_back(T&& t)
     {
-        HDSA_BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be pushed.\n");
+        HDSA_BASIC_ASSERT((m_size <= std::numeric_limits<std::size_t>::max() - 1), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be pushed.\n");
 
         if (!has_memory())
         {
@@ -1061,7 +1061,7 @@ public:
     template<typename... Args>
     T& emplace_back(Args&&... args)
     {
-        HDSA_BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be emplaced.\n");
+        HDSA_BASIC_ASSERT((m_size <= std::numeric_limits<std::size_t>::max() - 1), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be emplaced.\n");
 
         if (!has_memory())
         {
@@ -1093,7 +1093,7 @@ public:
     // Copies "element" at the "position" (starting from 0) and moves the following T objects 1 position above
     void insert_single(std::size_t position, const T& element)
     {
-        HDSA_BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
+        HDSA_BASIC_ASSERT((m_size <= std::numeric_limits<std::size_t>::max() - 1), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
         HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
         HDSA_BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
 
@@ -1116,7 +1116,7 @@ public:
     // Moves "element" at the "position" (starting from 0) and moves the following T objects 1 position above
     void insert_single(std::size_t position, T&& element)
     {
-        HDSA_BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
+        HDSA_BASIC_ASSERT((m_size <= std::numeric_limits<std::size_t>::max() - 1), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
         HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
         HDSA_BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
 
@@ -1139,7 +1139,7 @@ public:
     template<typename... Args>
     void insert_emplace(std::size_t position, Args&&... args)
     {
-        HDSA_BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be emplaced.\n");
+        HDSA_BASIC_ASSERT((m_size <= std::numeric_limits<std::size_t>::max() - 1), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be emplaced.\n");
         HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
         HDSA_BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
 
@@ -1162,7 +1162,7 @@ public:
     // Copies "element" "amount" times starting at "position" (starting from 0) and moves the following T objects also "amount" positions above
     void insert_multiple(std::size_t position, std::size_t amount, const T& element)
     {
-        HDSA_BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
+        HDSA_BASIC_ASSERT((m_size <= std::numeric_limits<std::size_t>::max() - amount), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
         HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
         HDSA_BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
         HDSA_BASIC_ASSERT((amount > 0), "The amount of elements to insert must be bigger than 0.\n");
@@ -1190,11 +1190,11 @@ public:
     // and moves the following T objects also "amount" positions above
     void insert_list(std::size_t position, std::initializer_list<T> list)
     {
-        HDSA_BASIC_ASSERT((m_size < std::numeric_limits<std::size_t>::max()), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
+        std::size_t amount { list.size() };
+
+        HDSA_BASIC_ASSERT((m_size <= std::numeric_limits<std::size_t>::max() - amount), "The DynArray has a number of elements that matches the limit of std::size_t, so new ones cannot be inserted.\n");
         HDSA_BASIC_ASSERT((has_memory()), "The DynArray has no buffer, push the T object instead.\n");
         HDSA_BASIC_ASSERT((position <= m_size), "The specified position is bigger than the DynArray's size.\n");
-
-        std::size_t amount { list.size() };
         HDSA_BASIC_ASSERT((amount > 0), "The amount of elements in the initializer list to insert must be bigger than 0.\n");
 
         if ((m_size + amount) > m_capacity)
