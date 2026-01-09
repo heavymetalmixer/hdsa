@@ -36,7 +36,7 @@ namespace hdsa
 {
 
 template<typename T>
-class DynArray final
+class DynArray
 {
 public:
     using value_type = T;
@@ -61,7 +61,7 @@ private:
     std::size_t m_capacity {};
 
 
-    struct Iterator final
+    struct Iterator
     {
         using difference_type = std::ptrdiff_t;
 
@@ -192,7 +192,7 @@ private:
         }
     };
 
-    struct ConstIterator final
+    struct ConstIterator
     {
         using difference_type = std::ptrdiff_t;
 
@@ -323,7 +323,7 @@ private:
         }
     };
 
-    struct ReverseIterator final
+    struct ReverseIterator
     {
         using difference_type = std::ptrdiff_t;
 
@@ -454,7 +454,7 @@ private:
         }
     };
 
-    struct ConstReverseIterator final
+    struct ConstReverseIterator
     {
         using difference_type = std::ptrdiff_t;
 

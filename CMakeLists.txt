@@ -17,6 +17,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_COMPILER g++) # g++, clang++ or cl
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# set(CMAKE_CXX_FLAGS_DEBUG "-v -fdiagnostics-color=always -m64 -O0 -g3 -Wall -Wextra -Wconversion -Warith-conversion -Wsign-conversion -Wsign-compare -Wuninitialized -Wunused -Wunused-parameter -Wshadow -Wpedantic -lstdc++exp -std=c++${CMAKE_CXX_STANDARD}" CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS_DEBUG "-v -fdiagnostics-color=always -m64 -O0 -g3 -Wall -Wextra -Wconversion -Warith-conversion -Wsign-conversion -Wsign-compare -Wuninitialized -Wunused -Wunused-parameter -Wshadow -Wpedantic -std=c++${CMAKE_CXX_STANDARD}" CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-v -fdiagnostics-color=always -m64 -O2 -g3 -Wall -Wextra -Wconversion -Warith-conversion -Wsign-conversion -Wsign-compare -Wuninitialized -Wunused -Wunused-parameter -Wshadow -Wpedantic -std=c++${CMAKE_CXX_STANDARD}" CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS_RELEASE "-v -fdiagnostics-color=always -m64 -DNDEBUG -O3 -g0 -Wall -Wextra -Wconversion -Warith-conversion -Wsign-conversion -Wsign-compare -Wuninitialized -Wunused -Wunused-parameter -Wshadow -Wpedantic -std=c++${CMAKE_CXX_STANDARD}" CACHE STRING "" FORCE)
@@ -42,6 +43,9 @@ option(ENABLE_TESTING "Enable testing builds" OFF)
 set(SOURCE_FILES
     src/hdsa.cpp)
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
+
+# Necessary for some C++ 23 and 26 features
+target_link_libraries(${PROJECT_NAME} PUBLIC stdc++exp)
 
 # set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_CURRENT_SOURCE_DIR})
 

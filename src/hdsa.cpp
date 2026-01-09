@@ -1,9 +1,9 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <print>
 #include "dyn_array.hpp"
 #include "pmr.hpp"
-// #include "pmr.hpp"
 
 struct Vec3
 {
@@ -355,36 +355,28 @@ void const_iterators_tests()
 
 int main()
 {
-    /**
-     * TESTED_ALREADY:
-     * Can the private members be modified? NO
-     * Default constructor
-     * Constructor with single std::size_t argument
-     * Constructor with std::size_t and element arguments
-     * Copy constructor
-     * std::initializer_list constructor
-     * Move constructor
-     * Copy assignment
-     * std::initializer_list assignment
-     * Move assigment
-     * reserve
-     * push_back in both versions
-     * emplace_back
-     * pop_back
-     * array_ptr in both versions
-     * operator[] with multiple elements in both versions
-     * at_unchecked in both versions
-     * first and last in both versions
-     * shrink_to_size
-     * reset_single, reset_multiple, reset_all, reset_array
-     * operator<<
-    */
+    constexpr size_t buffer1_size { 200 };
+    uint8_t buffer1[buffer1_size] {};
+    std::pmr::monotonic_buffer_resource arena1(&buffer1, buffer1_size);
+    std::pmr::vector<int> v1(&arena1);
 
-    // const_iterators_tests();
+    for (std::size_t i {}; i < 5; i++)
+    {
+        v1.push_back(static_cast<int>(i));
+    }
 
-    hdsa::DynArray<Vec3> v1 {};
-    v1.erase_multiple(0ull, 2ull);
+    // std::println("{}", v1);
 
-    std::cout << v1 << '\n';
+    constexpr std::size_t buffer2_size { 200 };
+    int8_t buffer2[buffer2_size] {};
+    std::pmr::monotonic_buffer_resource arena2(&buffer2, buffer2_size);
+    std::pmr::vector<int> v2(&arena2);
+
+    for (std::size_t i {}; i < buffer2_size; i++)
+    {
+        v2.push_back(static_cast<int>(i));
+    }
+
+    // std::println("{}", v2);
     return 0;
 }

@@ -63,6 +63,9 @@ std::size_t round_pow_two(std::size_t x)
     return i;
 }
 
+template<typename T>
+std::size_t round_pow_two(T t) = delete;
+
 // Memeory resource for linear allocators, AKA arena allocators,
 // the most simple and basic kind of allocator
 struct Linear_mem_resource : public std::pmr::memory_resource
