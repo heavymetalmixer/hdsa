@@ -51,17 +51,17 @@ struct Vec3
 
     ~Vec3()
     {
-        delete mem;
+        // delete mem;
         mem = nullptr;
     }
 
     friend std::ostream& operator <<(std::ostream& out, const Vec3& v3)
     {
-        out << "Vec3 { " << v3.x << ", " << v3.y << ", " << v3.z << ", " << *v3.mem << " }";
+        out << "Vec3 { " << v3.x << ", " << v3.y << ", " << v3.z << ", " << ((v3.mem == nullptr) ? 0 : *v3.mem) << " }";
         return out;
     }
 
-        friend bool operator==(const Vec3& a, const Vec3& b)
+    friend bool operator==(const Vec3& a, const Vec3& b)
     {
         if ((a.x == b.x) && (a.y == b.y) && (a.z == b.z) && (a.mem == b.mem)) { return true; }
 
@@ -355,28 +355,53 @@ void const_iterators_tests()
 
 int main()
 {
-    constexpr size_t buffer1_size { 200 };
-    uint8_t buffer1[buffer1_size] {};
-    std::pmr::monotonic_buffer_resource arena1(&buffer1, buffer1_size);
-    std::pmr::vector<int> v1(&arena1);
+    // constexpr size_t buffer1_size { 200 };
+    // uint8_t buffer1[buffer1_size] {};
+    // std::pmr::monotonic_buffer_resource arena1(&buffer1, buffer1_size);
+    // std::pmr::vector<int> v1(&arena1);
 
-    for (std::size_t i {}; i < 5; i++)
-    {
-        v1.push_back(static_cast<int>(i));
-    }
+    // for (std::size_t i {}; i < 5; i++)
+    // {
+    //     v1.push_back(static_cast<int>(i));
+    // }
 
-    // std::println("{}", v1);
+    // // std::println("{}", v1);
 
-    constexpr std::size_t buffer2_size { 200 };
-    int8_t buffer2[buffer2_size] {};
-    std::pmr::monotonic_buffer_resource arena2(&buffer2, buffer2_size);
-    std::pmr::vector<int> v2(&arena2);
+    // constexpr std::size_t buffer2_size { 200 };
+    // int8_t buffer2[buffer2_size] {};
+    // std::pmr::monotonic_buffer_resource arena2(&buffer2, buffer2_size);
+    // std::pmr::vector<int> v2(&arena2);
 
-    for (std::size_t i {}; i < buffer2_size; i++)
-    {
-        v2.push_back(static_cast<int>(i));
-    }
+    // for (std::size_t i {}; i < buffer2_size; i++)
+    // {
+    //     v2.push_back(static_cast<int>(i));
+    // }
 
     // std::println("{}", v2);
+
+    constexpr std::size_t buffer_size { sizeof(Vec3) };
+    uint8_t src[buffer_size];
+    uint8_t dest[buffer_size];
+    std::cout << sizeof(void*) << '\n';
+
+    Vec3* v1 { new(&src) Vec3(3, 3, 3, 3) };
+    std::cout << *v1 << '\n';
+
+    std::memcpy(&dest, &src, buffer_size);
+    // Vec3* v2 { reinterpret_cast<Vec3*>(dest) };
+    // std::cout << *v2 << '\n';
+
+    // delete v2->mem;
+    // v2->mem = nullptr;
+    // std::cout << *v2 << '\n';
+
+    // This other way makes another copy to initialize v2, calling Vec3's Copy Constructor
+    // so Vec3 must be a reference type to avoid the extra copy
+    Vec3& v2 { *(reinterpret_cast<Vec3*>(dest)) };
+    std::cout << v2 << '\n';
+
+    delete v2.mem;
+    v2.mem = nullptr;
+    std::cout << v2 << '\n';
     return 0;
 }

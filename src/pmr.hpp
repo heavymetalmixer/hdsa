@@ -44,37 +44,36 @@ bool is_pod()
     std::is_trivially_destructible_v<T>;
 }
 
+bool is_power_of_two(const std::size_t& x)
+{
+    if (x == 0) { return false; }
+
+    return ((x & (x - 1)) == 0);
+}
 
 // If x isn't some power of 2, then increase it until it becomes a power of 2
-std::size_t round_pow_two(std::size_t x)
+std::size_t round_pow_two(const std::size_t& x)
 {
-    if (x == 0) { return 1; }
-
-    if (x == 1) { return x; }
+    if ((x == 0) || (x == 1)) { return 1; }
 
     std::size_t i { 1 };
 
     while(i < x)
     {
         i = (i << 1);
-        std::cout << i << '\n';
     }
 
     return i;
 }
 
-template<typename T>
-std::size_t round_pow_two(T t) = delete;
-
 // Memeory resource for linear allocators, AKA arena allocators,
 // the most simple and basic kind of allocator
 struct Linear_mem_resource : public std::pmr::memory_resource
 {
-    unsigned char* buffer { nullptr };
+    uint8_t* buffer { nullptr };
     std::size_t buffer_length {};
     std::size_t current_offset {};
     std::size_t previous_offset {};
-    std::size_t remaining_space {};
 
     // std::size_t next_buffer_length {};
     // std::pmr::memory_resource* upstream { nullptr };
@@ -103,10 +102,9 @@ struct Linear_mem_resource : public std::pmr::memory_resource
     : buffer_length(buffer_size)
     {}
 
-    Linear_mem_resource(void* const buff, const std::size_t buffer_size) noexcept
-    : buffer(static_cast<unsigned char*>(buff)),
-      buffer_length(buffer_size),
-      remaining_space(buffer_size)
+    explicit Linear_mem_resource(void* buff, const std::size_t buffer_size) noexcept
+    : buffer(static_cast<uint8_t*>(buff)),
+      buffer_length(buffer_size)
     {
         // If the buffer passed as an argument is empty, create a new one
         // if (arena_buffer == nullptr) {
@@ -126,13 +124,12 @@ struct Linear_mem_resource : public std::pmr::memory_resource
 
     // Assign an existing buffer to this resource if the resource was already constructed without it
     // or if you just wanna change the buffer it points to
-    void assign_buffer(void* const buff, std::size_t buffer_size)
+    void assign_buffer(void* buff, std::size_t buffer_size)
     {
-        buffer = static_cast<unsigned char*>(buff);
+        buffer = static_cast<uint8_t*>(buff);
         buffer_length = buffer_size;
         previous_offset = 0;
         current_offset = 0;
-        remaining_space = buffer_length;
     }
 
     // It doesn't really erase any memory nor objects, it only resets the offsets and
@@ -142,20 +139,19 @@ struct Linear_mem_resource : public std::pmr::memory_resource
     {
         previous_offset = 0;
         current_offset = 0;
-        remaining_space = buffer_length;
     }
 
-    uintptr_t align_forward(uintptr_t ptr, std::size_t alignment = 2 * sizeof(void*))
+    uintptr_t align_forward(uintptr_t ptr, std::size_t alignment = sizeof(void*))
     {
         uintptr_t p, a, modulo;
 
         // If alignment isn't a power of 2, increase it up to the next power of 2
-        if ((alignment & (alignment - 1)) == 0 )
+        if (!is_power_of_two(alignment))
         {
             alignment = round_pow_two(alignment);
         }
 
-        //HDSA_BASIC_ASSERT(((alignment & (alignment - 1)) == 0), "The alignment provided isn't a power of 2!\n");
+        //HDSA_BASIC_ASSERT(is_power_of_two(alignment)), "The alignment provided isn't a power of 2!\n");
 
         p = ptr;
         a = static_cast<uintptr_t>(alignment);
@@ -172,13 +168,9 @@ struct Linear_mem_resource : public std::pmr::memory_resource
         return p;
     }
 
-    void* linear_alloc(std::size_t number_of_bytes, std::size_t alignment = 2 * sizeof(void*))
+    void* linear_alloc(std::size_t number_of_bytes, std::size_t alignment = sizeof(void*))
     {
-        if (number_of_bytes == 0)
-        {
-            std::cerr << "Using 0 as buffer size IS NOT ALLOWED. Returning nullptr.\n";
-            return nullptr;
-        }
+        HDSA_BASIC_ASSERT((number_of_bytes > 0), "Using 0 as buffer size is not allowed.\n");
 
         // Align current_offset forward to the specified alignment
         uintptr_t current_ptr { reinterpret_cast<uintptr_t>(buffer) + static_cast<uintptr_t>(current_offset) };
@@ -187,14 +179,16 @@ struct Linear_mem_resource : public std::pmr::memory_resource
         uintptr_t aligned_offset { align_forward(current_ptr, alignment) };
         std::cout << "aligned_offset (absolute): " << aligned_offset << '\n';
 
-        aligned_offset -= reinterpret_cast<uintptr_t>(buffer); // Subtract away the buffer adress number so
+        // Subtract away the buffer adress number so
         // aligned_offset becomes an actual relative offset like previous_offset and current_offset,
         // instead of the huge address number it got from current_ptr
+        aligned_offset -= reinterpret_cast<uintptr_t>(buffer);
+
         std::cout << "aligned offset (relative): " << aligned_offset << '\n';
 
         // Check to see if the backing memory has space left
         // if (current_offset + number_of_bytes <= buffer_length) {
-        if (aligned_offset + number_of_bytes <= remaining_space)
+        if ((static_cast<std::size_t>(aligned_offset) + number_of_bytes) <= (buffer_length - current_offset))
         {
             void* ptr { &buffer[aligned_offset] };
             previous_offset = aligned_offset;
@@ -202,13 +196,9 @@ struct Linear_mem_resource : public std::pmr::memory_resource
 
             current_offset = aligned_offset + number_of_bytes;
             std::cout << "current_offset: " << current_offset << '\n';
-
-            remaining_space = buffer_length - current_offset;
-            std::cout << "remaining_space: " << remaining_space << '\n';
-
-            // Zero new memory by default
-            memset(ptr, 0, number_of_bytes);
+            std::cout << "remaining_space: " << (buffer_length - current_offset) << '\n';
             std::cout << "The allocation of " << number_of_bytes << " bytes was successful!\n";
+
             return ptr;
         }
 
@@ -218,31 +208,31 @@ struct Linear_mem_resource : public std::pmr::memory_resource
     }
 
     // It changes the size of the latest allocation, not the buffer nor the object
-    void* linear_alloc_resize(void* old_memory, std::size_t old_size, std::size_t new_size, std::size_t alignment = 2 * sizeof(void*))
+    void* linear_alloc_resize(void* old_memory, std::size_t old_size, std::size_t new_size, std::size_t alignment = sizeof(void*))
     {
-        unsigned char* old_mem { static_cast<unsigned char*>(old_memory) };
+        uint8_t* old_mem { static_cast<uint8_t*>(old_memory) };
 
-        if ((alignment & (alignment - 1)) == 0 )
+        if (!is_power_of_two(alignment))
         {
             alignment = round_pow_two(alignment);
         }
 
-        if (old_mem == nullptr || old_size == 0)
+        if ((old_mem == nullptr) || (old_size == 0))
         {
             return linear_alloc(new_size, alignment);
         }
         // Checking if old mem can still fit in the space available in the buffer
-        else if (buffer <= old_mem && old_mem < (buffer + buffer_length))
+        else if ((buffer <= old_mem) && old_mem < (buffer + buffer_length))
         {
-            if (buffer + previous_offset == old_mem)
+            if ((buffer + previous_offset) == old_mem)
             {
                 current_offset = previous_offset + new_size;
 
-                if (new_size > old_size)
-                {
-                    // Zero ONLY the new memory by default
-                    memset(&buffer[current_offset], 0, new_size - old_size);
-                }
+                // Zero ONLY the new memory by default
+                // if (new_size > old_size)
+                // {
+                //     memset(&buffer[current_offset], 0, new_size - old_size);
+                // }
 
                 return old_memory;
             }
@@ -264,7 +254,7 @@ struct Linear_mem_resource : public std::pmr::memory_resource
         }
     }
 
-    void* do_allocate(std::size_t number_of_bytes, std::size_t alignment = 2 * sizeof(void*)) override
+    void* do_allocate(std::size_t number_of_bytes, std::size_t alignment = sizeof(void*)) override
     {
         return linear_alloc(number_of_bytes, alignment);
     }
@@ -329,17 +319,17 @@ struct Stack_resource : public std::pmr::memory_resource
     {}
 
     // It gives the padding neccesary to fit the header right after, followed by the next aligned allocation
-    uintptr_t calc_padding_with_header(uintptr_t ptr, std::size_t header_size, std::size_t alignment = 2 * sizeof(void*))
+    uintptr_t calc_padding_with_header(uintptr_t ptr, std::size_t header_size, std::size_t alignment = sizeof(void*))
     {
         uintptr_t p, a, modulo, padding, needed_space;
 
         // If alignment isn't a power of 2, increase it up to the next power of 2
-        if ((alignment & (alignment - 1)) == 0 )
+        if (!is_power_of_two(alignment))
         {
             alignment = round_pow_two(alignment);
         }
 
-        //HDSA_BASIC_ASSERT(((alignment & (alignment - 1)) == 0), "The alignment provided isn't a power of 2!\n");
+        //HDSA_BASIC_ASSERT(is_power_of_two(alignment)), "The alignment provided isn't a power of 2!\n");
 
         p = ptr;
         a = static_cast<uintptr_t>(alignment);
