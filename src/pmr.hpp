@@ -66,12 +66,13 @@ std::size_t round_pow_two(const std::size_t& x)
     return i;
 }
 
-// Memeory resource for linear allocators, AKA arena allocators,
-// the most simple and basic kind of allocator
-struct Linear_mem_resource : public std::pmr::memory_resource
+// Memeory resource for linear allocators, AKA Arena allocators, the most simple
+// and basic kind of allocator and also the fastest one
+struct ArenaAlloc : public std::pmr::memory_resource
 {
-    uint8_t* buffer { nullptr };
+    uint8_t* buffer {};
     std::size_t buffer_length {};
+    // std::pmr::memory_resource* source_alloc {}; // In PMR allocators from the Standard Library it's called "upstream"
     std::size_t current_offset {};
     std::size_t previous_offset {};
 
@@ -94,32 +95,26 @@ struct Linear_mem_resource : public std::pmr::memory_resource
     //     // initialize this resource with upstream and initial buffer
     // }
 
-    Linear_mem_resource() = default;
+    ArenaAlloc() = default;
 
-    // Contruct a Linear_mem_resource without assigning a buffer to it
-    // So make sure to assign a buffer to it before allocating with it
-    explicit Linear_mem_resource(const std::size_t buffer_size) noexcept
-    : buffer_length(buffer_size)
-    {}
-
-    explicit Linear_mem_resource(void* buff, const std::size_t buffer_size) noexcept
+    explicit ArenaAlloc(void* buff, const std::size_t buffer_size) noexcept
     : buffer(static_cast<uint8_t*>(buff)),
       buffer_length(buffer_size)
     {
-        // If the buffer passed as an argument is empty, create a new one
-        // if (arena_buffer == nullptr) {
-        //     arena_buffer = static_cast<std::byte*>(malloc(sizeof(std::byte) * buffer_size));
-        //     arena_buffer_length = buffer_size;
-        // }
-
         HDSA_BASIC_ASSERT((buffer != nullptr), "The buffer is empty!\n");
-
+        HDSA_BASIC_ASSERT((buffer_length > 0), "The buffer is empty!\n");
         std::cout << "An Arena memory resource was created, and a buffer of " << buffer_length << " bytes was assigned to it\n";
     };
 
-    ~Linear_mem_resource()
+    ArenaAlloc(const ArenaAlloc& other) = default;
+    ArenaAlloc(ArenaAlloc&& other) noexcept = default;
+    ArenaAlloc& operator=(const ArenaAlloc& other) = default;
+    ArenaAlloc& operator=(ArenaAlloc&& other) noexcept = default;
+
+    ~ArenaAlloc()
     {
         std::cout << "An Arena memory resource is about to be deleted. It has a buffer of " << buffer_length << " bytes assigned to it\n";
+        // if (source_alloc != nullptr) { release(); }
     }
 
     // Assign an existing buffer to this resource if the resource was already constructed without it
@@ -135,13 +130,24 @@ struct Linear_mem_resource : public std::pmr::memory_resource
     // It doesn't really erase any memory nor objects, it only resets the offsets and
     // remaining_space so allocations can be done from the beginning of the buffer again
     // In other words: All the data in there will be overwritten once new allocations are made
-    void free_memory()
+    void reset_offsets()
     {
         previous_offset = 0;
         current_offset = 0;
     }
 
-    uintptr_t align_forward(uintptr_t ptr, std::size_t alignment = sizeof(void*))
+    std::size_t remaining_storage()
+    {
+        return buffer_length - current_offset;
+    }
+
+    // Calls the deallocate method from the upstream resource, which for an upstream ArenaAlloc does nothing, AKA it's a no-op
+    // void release()
+    // {
+    //     source_alloc->deallocate(buffer, buffer_length);
+    // }
+
+    uintptr_t align_forward(uintptr_t ptr, std::size_t alignment = alignof(std::max_align_t))
     {
         uintptr_t p, a, modulo;
 
@@ -168,7 +174,7 @@ struct Linear_mem_resource : public std::pmr::memory_resource
         return p;
     }
 
-    void* linear_alloc(std::size_t number_of_bytes, std::size_t alignment = sizeof(void*))
+    void* linear_alloc(std::size_t number_of_bytes, std::size_t alignment = alignof(std::max_align_t))
     {
         HDSA_BASIC_ASSERT((number_of_bytes > 0), "Using 0 as buffer size is not allowed.\n");
 
@@ -179,7 +185,7 @@ struct Linear_mem_resource : public std::pmr::memory_resource
         uintptr_t aligned_offset { align_forward(current_ptr, alignment) };
         std::cout << "aligned_offset (absolute): " << aligned_offset << '\n';
 
-        // Subtract away the buffer adress number so
+        // Subtract away the buffer address number so
         // aligned_offset becomes an actual relative offset like previous_offset and current_offset,
         // instead of the huge address number it got from current_ptr
         aligned_offset -= reinterpret_cast<uintptr_t>(buffer);
@@ -188,7 +194,7 @@ struct Linear_mem_resource : public std::pmr::memory_resource
 
         // Check to see if the backing memory has space left
         // if (current_offset + number_of_bytes <= buffer_length) {
-        if ((static_cast<std::size_t>(aligned_offset) + number_of_bytes) <= (buffer_length - current_offset))
+        if ((static_cast<std::size_t>(aligned_offset) + number_of_bytes) <= buffer_length)
         {
             void* ptr { &buffer[aligned_offset] };
             previous_offset = aligned_offset;
@@ -197,7 +203,11 @@ struct Linear_mem_resource : public std::pmr::memory_resource
             current_offset = aligned_offset + number_of_bytes;
             std::cout << "current_offset: " << current_offset << '\n';
             std::cout << "remaining_space: " << (buffer_length - current_offset) << '\n';
+            std::cout << "buffer: " << reinterpret_cast<void*>(buffer) << '\n';
             std::cout << "The allocation of " << number_of_bytes << " bytes was successful!\n";
+
+            // Zero new memory by default
+            std::memset(ptr, 0, number_of_bytes);
 
             return ptr;
         }
@@ -208,7 +218,7 @@ struct Linear_mem_resource : public std::pmr::memory_resource
     }
 
     // It changes the size of the latest allocation, not the buffer nor the object
-    void* linear_alloc_resize(void* old_memory, std::size_t old_size, std::size_t new_size, std::size_t alignment = sizeof(void*))
+    void* linear_alloc_resize(void* old_memory, std::size_t old_size, std::size_t new_size, std::size_t alignment = alignof(std::max_align_t))
     {
         uint8_t* old_mem { static_cast<uint8_t*>(old_memory) };
 
@@ -229,10 +239,10 @@ struct Linear_mem_resource : public std::pmr::memory_resource
                 current_offset = previous_offset + new_size;
 
                 // Zero ONLY the new memory by default
-                // if (new_size > old_size)
-                // {
-                //     memset(&buffer[current_offset], 0, new_size - old_size);
-                // }
+                if (new_size > old_size)
+                {
+                    std::memset(&buffer[current_offset], 0, new_size - old_size);
+                }
 
                 return old_memory;
             }
@@ -254,8 +264,10 @@ struct Linear_mem_resource : public std::pmr::memory_resource
         }
     }
 
-    void* do_allocate(std::size_t number_of_bytes, std::size_t alignment = sizeof(void*)) override
+    void* do_allocate(std::size_t number_of_bytes, std::size_t alignment) override
     {
+        std::cout << "current_offset: " << current_offset << '\n';
+        std::cout << "remaining_space: " << (buffer_length - current_offset) << '\n';
         return linear_alloc(number_of_bytes, alignment);
     }
 
@@ -264,62 +276,91 @@ struct Linear_mem_resource : public std::pmr::memory_resource
 
     bool do_is_equal(const std::pmr::memory_resource& other) const noexcept override
     {
-        return this == &other;
+        return this == dynamic_cast<const ArenaAlloc*>(&other);
     }
 };
 
 // Think of this temporal arena as a checkpoint that saves the latest allocation offsets
-// so once the original Linear_mem_resource allocates once more and deallocates, it can
-// go back to that previous allocation that Temp_arena saved instead of having to
+// so once the original ArenaAlloc allocates once more and deallocates, it can
+// go back to that previous allocation offset that TempArena saved instead of having to
 // reset the whole buffer
-struct Temp_arena
+struct TempArena
 {
-	Linear_mem_resource *lmm { nullptr };
-	std::size_t prev_offset {};
-	std::size_t curr_offset {};
+	ArenaAlloc* lmm { nullptr };
+	std::size_t pre_offset {};
+	std::size_t cur_offset {};
 
-    Temp_arena() = delete;
+    TempArena() = default;
 
-    explicit Temp_arena(Linear_mem_resource *arena) noexcept
+    explicit TempArena(ArenaAlloc* arena) noexcept
     : lmm(arena),
-      prev_offset(arena->previous_offset),
-      curr_offset(arena->current_offset)
+      pre_offset(arena->previous_offset),
+      cur_offset(arena->current_offset)
     {}
 
+    TempArena(const TempArena& other) = default;
+    TempArena(TempArena&& other) noexcept = default;
+    TempArena& operator=(const TempArena& other) = default;
+    TempArena& operator=(TempArena&& other) noexcept = default;
+
+    ~TempArena()
+    {
+        std::cout << "A TempArena is about to be destroyed. Its offsets are: \n";
+        std::cout << "pre_offset: " << pre_offset << '\n';
+        std::cout << "cur_offset: " << cur_offset << '\n';
+    }
+
+    // Cut ties with the current ArenaAlloc manually, so it can be used by
+    // another one before the TempArena is destroyed
     void temp_arena_end()
     {
-        if (lmm == nullptr || curr_offset == 0)
+        if ((lmm == nullptr) || (cur_offset == 0))
         {
-            std::cerr << "This temporal arena is empty. No changes will be performed to the Linear memory resource.\n";
+            std::cout << "This temporal arena is empty. No changes will be performed to the Linear memory resource.\n";
+            pre_offset = 0;
+            cur_offset = 0;
+            lmm = nullptr;
             return;
         }
 
-        lmm->previous_offset = prev_offset;
-        lmm->current_offset = curr_offset;
+        lmm->previous_offset = pre_offset;
+        lmm->current_offset = cur_offset;
+        pre_offset = 0;
+        cur_offset = 0;
+        lmm = nullptr;
+    }
+
+    // If you wanna assign a ArenaAlloc to a default-constructed TempArena,
+    // or to reuse the same TempArena for a different ArenaAlloc
+    void assign_arena(ArenaAlloc* arena)
+    {
+        lmm = arena;
+        pre_offset = arena->previous_offset;
+        cur_offset = arena->current_offset;
     }
 };
 
-struct Stack_header
+struct StackHeader
 {
     uint8_t padding {};
 };
 
-struct Stack_resource : public std::pmr::memory_resource
+struct StackAlloc : public std::pmr::memory_resource
 {
-    unsigned char* buffer { nullptr };
+    uint8_t* buffer { nullptr };
     std::size_t buffer_length {};
     std::size_t offset {};
 
-    Stack_resource() = default;
+    StackAlloc() = default;
 
-    explicit Stack_resource(void* backing_buffer, std::size_t backing_buffer_length)  noexcept
-    : buffer(static_cast<unsigned char*>(backing_buffer)),
+    explicit StackAlloc(void* backing_buffer, std::size_t backing_buffer_length)  noexcept
+    : buffer(static_cast<uint8_t*>(backing_buffer)),
       buffer_length(backing_buffer_length),
       offset(0)
     {}
 
     // It gives the padding neccesary to fit the header right after, followed by the next aligned allocation
-    uintptr_t calc_padding_with_header(uintptr_t ptr, std::size_t header_size, std::size_t alignment = sizeof(void*))
+    uintptr_t calc_padding_with_header(uintptr_t ptr, std::size_t header_size, std::size_t alignment = alignof(std::max_align_t))
     {
         uintptr_t p, a, modulo, padding, needed_space;
 

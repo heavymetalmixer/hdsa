@@ -7,27 +7,38 @@
 
 struct Vec3
 {
-    int x { 1 };
-    int y { 2 };
-    int z { 3 };
+    using allocator_type = std::pmr::polymorphic_allocator<uint8_t>;
+
+    int x {};
+    int y {};
+    short z {};
+    allocator_type alloc { std::pmr::new_delete_resource() };
     int* mem { nullptr };
 
-    Vec3()
-    : mem { new int(10) }
-    {}
 
-    Vec3(int xa, int ya, int za, int mema)
+    Vec3()
+    : alloc { allocator_type(std::pmr::new_delete_resource()) },
+      mem { alloc.new_object<int>(10) }
+    {
+        std::cout << "Vec3 Value Construction.\n";
+    }
+
+    explicit Vec3(int xa, int ya, short za, int mema)
     : x { xa },
       y { ya },
       z { za },
-      mem { new int(mema) }
-    {}
+      alloc { allocator_type(std::pmr::new_delete_resource()) },
+      mem { alloc.new_object<int>(mema) }
+    {
+        std::cout << "Vec3 Value Construction.\n";
+    }
 
     Vec3(const Vec3& other)
     : x { other.x },
       y { other.y },
       z { other.z },
-      mem { new int(*other.mem) }
+      alloc { allocator_type(std::pmr::new_delete_resource()) },
+      mem { alloc.new_object<int>(*other.mem) }
     {
         std::cout << "Vec3 Copy Construction.\n";
     }
@@ -36,34 +47,100 @@ struct Vec3
     : x { other.x },
       y { other.y },
       z { other.z },
-      mem { other.mem }
+      alloc { allocator_type(std::pmr::new_delete_resource()) },
+      mem { alloc.new_object<int>(std::move(*other.mem)) }
     {
-        other.x = 1;
-        other.y = 2;
-        other.z = 3;
-        other.mem = nullptr;
-
         std::cout << "Vec3 Move Construction.\n";
     }
 
-    Vec3& operator=(const Vec3& other) = default;
-    Vec3& operator=(Vec3&& other) noexcept = default;
+    explicit Vec3(const allocator_type& allocator) noexcept
+    : x { 2 },
+      y { 3 },
+      z { 4 },
+      alloc { allocator },
+      mem { alloc.new_object<int>(10) }
+    {
+        std::cout << "Vec3 Default Construction with allocator assignment.\n";
+    }
+
+    explicit Vec3(int xa, int ya, short za, int mema, const allocator_type& allocator)
+    : x { xa },
+      y { ya },
+      z { za },
+      alloc { allocator },
+      mem { alloc.new_object<int>(mema) }
+    {
+        std::cout << "mem: " << mem << '\n';
+        std::cout << "Vec3 Value Construction with allocator assignment.\n";
+    }
+
+    Vec3(const Vec3& other, const allocator_type& allocator)
+    : x { other.x },
+      y { other.y },
+      z { other.z },
+      alloc { allocator },
+      mem { alloc.new_object<int>(*other.mem) }
+    {
+        std::cout << "Vec3 Copy Construction with allocator assignment.\n";
+    }
+
+    Vec3(Vec3&& other, const allocator_type& allocator)
+    : x { other.x },
+      y { other.y },
+      z { other.z },
+      alloc { allocator },
+      mem { alloc.new_object<int>(std::move(*other.mem)) }
+    {
+        std::cout << "Vec3 Move Construction with allocator assignment.\n";
+    }
+
+    allocator_type get_allocator() const
+    {
+        return alloc;
+    }
 
     ~Vec3()
     {
         // delete mem;
+        if (mem != nullptr) { alloc.delete_object(mem); }
         mem = nullptr;
+
+        std::cout << "Vec3 Destruction.\n";
     }
 
-    friend std::ostream& operator <<(std::ostream& out, const Vec3& v3)
+    Vec3& operator=(const Vec3& other)
     {
-        out << "Vec3 { " << v3.x << ", " << v3.y << ", " << v3.z << ", " << ((v3.mem == nullptr) ? 0 : *v3.mem) << " }";
+        x = other.x;
+        y = other.y;
+        z = other.z;
+        *mem = *other.mem;
+
+        std::cout << "Vec3 Copy Assignment.\n";
+
+        return *this;
+    }
+
+    Vec3& operator=(Vec3&& other) noexcept
+    {
+        x = other.x;
+        y = other.y;
+        z = other.z;
+        *mem = std::move(*other.mem);
+
+        std::cout << "Vec3 Move Assignment.\n";
+
+        return *this;
+    }
+
+    friend std::ostream& operator <<(std::ostream& out, const Vec3& v)
+    {
+        out << "Vec3 { " << v.x << ", " << v.y << ", " << v.z << ", " << ((v.mem == nullptr) ? 0 : *v.mem) << " }";
         return out;
     }
 
     friend bool operator==(const Vec3& a, const Vec3& b)
     {
-        if ((a.x == b.x) && (a.y == b.y) && (a.z == b.z) && (a.mem == b.mem)) { return true; }
+        if ((a.x == b.x) && (a.y == b.y) && (a.z == b.z) && (a.alloc == b.alloc) && (*a.mem == *b.mem)) { return true; }
 
         return false;
     }
@@ -355,53 +432,60 @@ void const_iterators_tests()
 
 int main()
 {
-    // constexpr size_t buffer1_size { 200 };
-    // uint8_t buffer1[buffer1_size] {};
-    // std::pmr::monotonic_buffer_resource arena1(&buffer1, buffer1_size);
-    // std::pmr::vector<int> v1(&arena1);
+    // std::pmr::monotonic_buffer_resource memory1 { sizeof(int) };
+    // std::pmr::polymorphic_allocator<unsigned char> poly1 { &memory1 };
 
-    // for (std::size_t i {}; i < 5; i++)
-    // {
-    //     v1.push_back(static_cast<int>(i));
-    // }
+    // Vec3 v1 { poly1 };
+    // std::cout << "v1 is: " << v1 << '\n';
 
-    // // std::println("{}", v1);
 
-    // constexpr std::size_t buffer2_size { 200 };
-    // int8_t buffer2[buffer2_size] {};
-    // std::pmr::monotonic_buffer_resource arena2(&buffer2, buffer2_size);
-    // std::pmr::vector<int> v2(&arena2);
+    // std::pmr::monotonic_buffer_resource memory2 { sizeof(int) };
+    // std::pmr::polymorphic_allocator<unsigned char> poly2 { &memory2 };
 
-    // for (std::size_t i {}; i < buffer2_size; i++)
-    // {
-    //     v2.push_back(static_cast<int>(i));
-    // }
+    // Vec3 v2 { 3, 3, 3, 4, poly2 };
+    // std::cout << "v2 is: " << v2 << '\n';
 
-    // std::println("{}", v2);
 
-    constexpr std::size_t buffer_size { sizeof(Vec3) };
-    uint8_t src[buffer_size];
-    uint8_t dest[buffer_size];
-    std::cout << sizeof(void*) << '\n';
+    // v2 = std::move(v1);
+    // std::cout << "v2 is: " << v2 << '\n';
+    // std::cout << "------------------------------------------------------\n\n";
+    // std::cout << "v1 is: " << v1 << '\n';
 
-    Vec3* v1 { new(&src) Vec3(3, 3, 3, 3) };
-    std::cout << *v1 << '\n';
+    uint8_t* buffer1 { static_cast<uint8_t*>(::operator new(((sizeof(uint8_t) * sizeof(Vec3)) + alignof(int)) * 4, static_cast<std::align_val_t>(alignof(uint8_t)), std::nothrow)) };
+    hdsa::ArenaAlloc memory1 { static_cast<void*>(buffer1), (sizeof(uint8_t) * sizeof(Vec3)) + alignof(int) };
 
-    std::memcpy(&dest, &src, buffer_size);
-    // Vec3* v2 { reinterpret_cast<Vec3*>(dest) };
-    // std::cout << *v2 << '\n';
 
-    // delete v2->mem;
-    // v2->mem = nullptr;
-    // std::cout << *v2 << '\n';
+    Vec3* v1 { static_cast<Vec3*>(memory1.allocate((sizeof(uint8_t) * sizeof(Vec3)), alignof(Vec3))) };
+    new(v1) Vec3(3, 3, 3, 4, std::pmr::polymorphic_allocator<uint8_t>(&memory1));
+    std::cout << "v1 is: " << *v1 << '\n';
+    std::cout << "mem is: " << v1->mem << '\n';
 
-    // This other way makes another copy to initialize v2, calling Vec3's Copy Constructor
-    // so Vec3 must be a reference type to avoid the extra copy
-    Vec3& v2 { *(reinterpret_cast<Vec3*>(dest)) };
-    std::cout << v2 << '\n';
+    // v1->mem = new(v1->mem) int(10);
+    // std::cout << "v1 is: " << *v1 << '\n';
 
-    delete v2.mem;
-    v2.mem = nullptr;
-    std::cout << v2 << '\n';
+
+    // uint8_t* buffer2 { static_cast<uint8_t*>(::operator new((sizeof(uint8_t) * sizeof(Vec3)) + sizeof(int), static_cast<std::align_val_t>(alignof(uint8_t)), std::nothrow)) };
+    // hdsa::ArenaAlloc memory2 { static_cast<void*>(buffer2), sizeof(Vec3) };
+    // std::pmr::polymorphic_allocator<unsigned char> poly2 { &memory2 };
+
+    // Vec3 v2 { 3, 3, 3, 4, poly2 };
+    // std::cout << "v2 is: " << v2 << '\n';
+
+
+    // v2 = v1;
+    // std::cout << "v2 is: " << v2 << '\n';
+    // std::cout << "------------------------------------------------------\n\n";
+    // std::cout << "v1 is: " << v1 << '\n';
+
+    // constexpr std::size_t buffer_size { sizeof(Vec3) };
+    // uint8_t buffer1[buffer_size];
+    // Vec3* v1 { new(&buffer1) Vec3(4, 2, 9, 8) };
+    // std::cout << "v1: " << alignof(v1) << '\n';
+
+    // uint8_t buffer2[buffer_size];
+    // std::memcpy(&buffer2, &buffer1, buffer_size);
+    // Vec3* v2 { reinterpret_cast<Vec3*>(&buffer2) };
+    // std::cout << "v2: " << alignof(v2) << '\n';
+
     return 0;
 }
