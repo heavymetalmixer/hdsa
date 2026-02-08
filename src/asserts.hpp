@@ -5,7 +5,7 @@
 
 // I don't like that C asserts don't work on Release builds so I made this one for the same purpose
 // If you compare 2 or more values/variables for the "condition", make sure to wrap them in parenthesis
-#define HDSA_BASIC_ASSERT(condition, message)                    \
+#define HDSA_BASIC_ASSERT(condition, message)               \
 if (!condition)                                             \
 {                                                           \
     auto loc { std::source_location::current() };           \
