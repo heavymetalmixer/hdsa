@@ -475,10 +475,10 @@ int main()
     std::cout << hdsa::round_pow_two(17) << '\n';
     std::cout << (1 & (8 - 1)) << '\n';
 
-    uint8_t* temp_buffer { static_cast<uint8_t*>(std::malloc(sizeof(uint64_t) * 8)) };
+    uint8_t* temp_buffer { static_cast<uint8_t*>(std::malloc(sizeof(uint64_t) * 16)) };
     hdsa::StackAlloc stack {};
     stack.buffer = temp_buffer;
-    stack.buffer_length = 8 * sizeof(uint64_t);
+    stack.buffer_length = 16 * sizeof(uint64_t);
 
     uint64_t* a { static_cast<uint64_t*>(stack.stack_push(sizeof(uint64_t), alignof(uint64_t))) };
     *a = 13;
@@ -500,6 +500,15 @@ int main()
     std::cout << "uc[2]: " << uc[2] << '\n';
     std::cout << "uc[3]: " << uc[3] << '\n';
     std::cout << "uc[4]: " << uc[4] << "\n\n\n";
+
+    uint32_t* star { static_cast<uint32_t*>(stack.stack_push(sizeof(int32_t), alignof(int32_t))) };
+    *star = 10;
+    std::cout << "*star: " << *star << "\n\n\n";
+
+    stack.stack_pop();
+    stack.stack_pop();
+    stack.stack_pop();
+    stack.stack_pop();
 
     // std::cin.get();
 

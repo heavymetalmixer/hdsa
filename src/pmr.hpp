@@ -452,14 +452,13 @@ struct TempArena
 struct StackHeader
 {
     std::size_t padding {};
-    std::size_t previous_offset {};
+    std::size_t start_offset {};
 };
 
 struct StackAlloc : public std::pmr::memory_resource
 {
     uint8_t* buffer {};
     std::size_t buffer_length {};
-    std::size_t previous_offset {};
     std::size_t current_offset {};
     std::size_t start_offset {};
 
@@ -481,7 +480,7 @@ struct StackAlloc : public std::pmr::memory_resource
     {
         buffer = static_cast<uint8_t*>(backing_buffer);
         buffer_length = backing_buffer_length;
-        previous_offset = 0;
+        start_offset = 0;
         current_offset = 0;
     }
 
@@ -516,22 +515,26 @@ struct StackAlloc : public std::pmr::memory_resource
      * In the allocation the first element is the header, then the allocated size and finally
      * the padding.
      * current_offset is located after the allocated bytes without padding.
-     * previous_offset is the same but for the previous allocation.
+     * start_offset is at th beginning the allocation. current_offset - start_offset gives
+     * the size of the allocation, without the padding.
+     * StackHeader stores the padding and start_offset of the previous allocation.
      */
     void* stack_push(std::size_t size, std::size_t alignment = alignof(std::max_align_t)) noexcept
     {
+        std::cout << "###############   ALLOCATION!   ################\n";
+
         uintptr_t current_address, next_address;
         std::size_t padding;
-        StackHeader *header;
+        StackHeader* header;
 
-        if (!is_power_of_two(alignment))
-        {
-            alignment = round_pow_two(alignment);
-        }
+        // if (!is_power_of_two(alignment))
+        // {
+        //     alignment = round_pow_two(alignment);
+        // }
 
         std::cout << "size: " << size << '\n';
         std::cout << "alignment: " << alignment << '\n';
-        std::cout << "current_offset and previous_offset before: " << current_offset << ", " << previous_offset << '\n';
+        std::cout << "current_offset and start_offset before: " << current_offset << ", " << start_offset << '\n';
 
         current_address = reinterpret_cast<uintptr_t>(buffer) + static_cast<uintptr_t>(current_offset);
         next_address = align_forward(current_address, alignment);
@@ -547,26 +550,28 @@ struct StackAlloc : public std::pmr::memory_resource
         }
 
         header = reinterpret_cast<StackHeader*>(next_address);
-        start_offset = static_cast<std::size_t>(next_address - reinterpret_cast<uintptr_t>(buffer)) + sizeof(StackHeader);
+        header->start_offset = start_offset;
         header->padding = padding;
+        start_offset = static_cast<std::size_t>(next_address - reinterpret_cast<uintptr_t>(buffer)) + sizeof(StackHeader);
 
         std::cout << "header offset: " << (reinterpret_cast<uintptr_t>(header) - reinterpret_cast<uintptr_t>(buffer)) << '\n';
         std::cout << "sizeof(StackHeader): " << sizeof(StackHeader) << '\n';
-        std::cout << "start_offset: " << start_offset << '\n';
         std::cout << "header->padding: " << (header->padding) << '\n';
+        std::cout << "header->start_offset: " << (header->start_offset) << '\n';
 
-        previous_offset = current_offset;
         current_offset += padding + sizeof(StackHeader) + size;
-        header->previous_offset = previous_offset;
 
-        std::cout << "previous_offset: " << previous_offset << '\n';
+        std::cout << "start_offset: " << start_offset << '\n';
         std::cout << "current_offset: " << current_offset << '\n';
-        std::cout << "header->previous_offset: " << (header->previous_offset) << '\n';
 
         next_address = reinterpret_cast<uintptr_t>(buffer) + static_cast<uintptr_t>(current_offset);
         return reinterpret_cast<void*>(next_address);
     }
 
+    /**
+     * Making use of the start_offset and the StackHeader it updates the offsets
+     * to the ones of the previous allocation.
+     */
     void stack_pop()
     {
         // if (ptr != nullptr)
@@ -594,6 +599,33 @@ struct StackAlloc : public std::pmr::memory_resource
         //     current_offset = previous_offset;
         //     previous_offset = header->previous_offset;
         // }
+
+        std::cout << "----------------   DEALLOCATION!   ------------------\n";
+
+        if(!((buffer == nullptr) && (current_offset == 0)))
+        {
+            uintptr_t start, current_address;
+            StackHeader* header;
+            std::size_t header_offset;
+
+            std::cout << "start_offset before: " << start_offset << '\n';
+            std::cout << "current_offset before: " << current_offset << '\n';
+
+            start = reinterpret_cast<uintptr_t>(buffer);
+            current_address = static_cast<uintptr_t>(start_offset) + start;
+
+            header = reinterpret_cast<StackHeader*>(current_address - static_cast<uintptr_t>(sizeof(StackHeader)));
+            header_offset = static_cast<std::size_t>(reinterpret_cast<uintptr_t>(header) - start);
+
+            std::cout << "header_offset: " << header_offset << '\n';
+            std::cout << "header->start_offset: " << header->start_offset << '\n';
+
+            current_offset = header_offset - header->padding;
+            start_offset = header->start_offset;
+
+            std::cout << "start_offset after: " << start_offset << '\n';
+            std::cout << "current_offset after: " << current_offset << '\n';
+        }
     }
 
     void* stack_resize(void* ptr, std::size_t old_size, std::size_t new_size, std::size_t alignment = alignof(std::max_align_t))
@@ -640,13 +672,13 @@ struct StackAlloc : public std::pmr::memory_resource
     void stack_reset()
     {
         current_offset = 0;
-        previous_offset = 0;
+        start_offset = 0;
     }
 
     void* do_allocate(std::size_t number_of_bytes, std::size_t alignment) override
     {
         std::cout << "current_offset: " << current_offset << '\n';
-        std::cout << "previous_offset: " << previous_offset << '\n';
+        std::cout << "start_offset: " << start_offset << '\n';
         std::cout << "remaining_space: " << (buffer_length - current_offset) << '\n';
         return stack_push(number_of_bytes, alignment);
     }
