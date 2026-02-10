@@ -45,7 +45,7 @@ bool is_pod()
     std::is_trivially_destructible_v<T>;
 }
 
-bool is_power_of_two(std::size_t x)
+bool is_power_of_two(size_t x)
 {
     if (x == 0) { return false; }
 
@@ -55,11 +55,11 @@ bool is_power_of_two(std::size_t x)
 // If x isn't some power of 2, then increase it until it becomes a power of 2
 // It returns 1 when the requested_size is 0, as this function is used for finding
 // alignments, and there's no aligment 0
-std::size_t round_pow_two(std::size_t requested_size)
+size_t round_pow_two(size_t requested_size)
 {
     if ((requested_size == 0) || (requested_size == 1)) { return 1; }
 
-    std::size_t power { 2 };
+    size_t power { 2 };
 
     while (requested_size > power)
     {
@@ -70,15 +70,15 @@ std::size_t round_pow_two(std::size_t requested_size)
 }
 
 // A block is 16 pages of 4K each
-constexpr std::size_t page_size { 4096 };
-constexpr std::size_t block_size { page_size * 16 }; // 65536
+constexpr size_t page_size { 4096 };
+constexpr size_t block_size { page_size * 16 }; // 65536
 
 // If requested_size isn't a power of 65536, then increase it until it becomes a power of 65536
-std::size_t round_to_block(std::size_t requested_size, std::size_t sys_block_size)
+size_t round_to_block(size_t requested_size, size_t sys_block_size)
 {
     if (requested_size == 0) { return 0; }
 
-    std::size_t reminder { requested_size % sys_block_size };
+    size_t reminder { requested_size % sys_block_size };
 
     if (reminder > 0)
     {
@@ -104,13 +104,13 @@ std::size_t round_to_block(std::size_t requested_size, std::size_t sys_block_siz
 struct VirtualPageAlloc : public std::pmr::memory_resource
 {
     uint8_t* buffer {};
-    std::size_t block_amount {};
-    std::size_t current_offset {};
-    std::size_t previous_offset {};
+    size_t block_amount {};
+    size_t current_offset {};
+    size_t previous_offset {};
 
     VirtualPageAlloc() = default;
 
-    explicit VirtualPageAlloc(void* buff, std::size_t blocks) noexcept
+    explicit VirtualPageAlloc(void* buff, size_t blocks) noexcept
     : buffer { static_cast<uint8_t*>(buff) },
       block_amount { blocks }
     {
@@ -134,7 +134,7 @@ struct VirtualPageAlloc : public std::pmr::memory_resource
      * 1) Call the OS virtual memory allocation function with the indicated number of blocks.
      * 2) Update the block_amount by added the new blocks to it.
      */
-    void* allocate_blocks(std::size_t blocks) noexcept
+    void* allocate_blocks(size_t blocks) noexcept
     {
         // Call the OS to get the amount of blocks of memory required.
         // The starting address will be just one byte after the latest block allocated
@@ -148,7 +148,7 @@ struct VirtualPageAlloc : public std::pmr::memory_resource
      * 1) Call the OS virtual memory deallocation function with the indicated number of blocks.
      * 2) Set all the allocator members to 0.
      */
-    void* deallocate_blocks(std::size_t blocks) noexcept
+    void* deallocate_blocks(size_t blocks) noexcept
     {
         VirtualFree(buffer, 0, MEM_RELEASE);
         buffer = nullptr;
@@ -157,13 +157,13 @@ struct VirtualPageAlloc : public std::pmr::memory_resource
         previous_offset = 0;
     }
 
-    void* do_allocate(std::size_t number_of_bytes, std::size_t alignment) override
+    void* do_allocate(size_t number_of_bytes, size_t alignment) override
     {
 
     }
 
     // It does nothing
-    void do_deallocate(void* p, std::size_t number_of_bytes, std::size_t alignment) override {}
+    void do_deallocate(void* p, size_t number_of_bytes, size_t alignment) override {}
 
     bool do_is_equal(const std::pmr::memory_resource& other) const noexcept override
     {
@@ -176,19 +176,19 @@ struct VirtualPageAlloc : public std::pmr::memory_resource
 struct ArenaAlloc : public std::pmr::memory_resource
 {
     uint8_t* buffer {};
-    std::size_t buffer_length {};
+    size_t buffer_length {};
     // std::pmr::memory_resource* source_alloc {}; // In PMR allocators from the Standard Library it's called "upstream"
-    std::size_t current_offset {};
-    std::size_t previous_offset {};
+    size_t current_offset {};
+    size_t previous_offset {};
 
-    // std::size_t next_buffer_length {};
+    // size_t next_buffer_length {};
     // std::pmr::memory_resource* upstream { nullptr };
 
 
     // explicit Linear_mem_resource(memory_resource* const new_upstream) noexcept
     //     : upstream{new_upstream} {} // initialize this resource with upstream
 
-    // Linear_mem_resource(const std::size_t buffer_size, memory_resource* const new_upstream) noexcept
+    // Linear_mem_resource(const size_t buffer_size, memory_resource* const new_upstream) noexcept
     //     : next_buffer_length(buffer_size), upstream{ new_upstream } {
     //     // initialize this resource with upstream and initial allocation size
     // }
@@ -202,7 +202,7 @@ struct ArenaAlloc : public std::pmr::memory_resource
 
     ArenaAlloc() = default;
 
-    explicit ArenaAlloc(void* buff, std::size_t buffer_size) noexcept
+    explicit ArenaAlloc(void* buff, size_t buffer_size) noexcept
     : buffer { static_cast<uint8_t*>(buff) },
       buffer_length { buffer_size }
     {
@@ -224,7 +224,7 @@ struct ArenaAlloc : public std::pmr::memory_resource
 
     // Assign an existing buffer to this resource if the resource was already constructed without it
     // or if you just wanna change the buffer it points to
-    void assign_buffer(void* buff, std::size_t buffer_size)
+    void assign_buffer(void* buff, size_t buffer_size)
     {
         buffer = static_cast<uint8_t*>(buff);
         buffer_length = buffer_size;
@@ -241,7 +241,7 @@ struct ArenaAlloc : public std::pmr::memory_resource
         current_offset = 0;
     }
 
-    std::size_t remaining_storage()
+    size_t remaining_storage()
     {
         return buffer_length - current_offset;
     }
@@ -252,7 +252,7 @@ struct ArenaAlloc : public std::pmr::memory_resource
     //     source_alloc->deallocate(buffer, buffer_length);
     // }
 
-    uintptr_t align_forward(uintptr_t ptr, std::size_t alignment = alignof(std::max_align_t))
+    uintptr_t align_forward(uintptr_t ptr, size_t alignment = alignof(std::max_align_t))
     {
         uintptr_t p, a, modulo;
 
@@ -279,7 +279,7 @@ struct ArenaAlloc : public std::pmr::memory_resource
         return p;
     }
 
-    void* linear_allocate(std::size_t number_of_bytes, std::size_t alignment = alignof(std::max_align_t))
+    void* linear_allocate(size_t number_of_bytes, size_t alignment = alignof(std::max_align_t))
     {
         HDSA_BASIC_ASSERT((number_of_bytes > 0), "Using 0 as buffer size is not allowed.\n");
 
@@ -299,7 +299,7 @@ struct ArenaAlloc : public std::pmr::memory_resource
 
         // Check to see if the backing memory has space left
         // if (current_offset + number_of_bytes <= buffer_length) {
-        if ((static_cast<std::size_t>(aligned_offset) + number_of_bytes) <= buffer_length)
+        if ((static_cast<size_t>(aligned_offset) + number_of_bytes) <= buffer_length)
         {
             void* ptr { &buffer[aligned_offset] };
             previous_offset = aligned_offset;
@@ -323,7 +323,7 @@ struct ArenaAlloc : public std::pmr::memory_resource
     }
 
     // It changes the size of the latest allocation, not the buffer nor the object
-    void* linear_resize(void* old_memory, std::size_t old_size, std::size_t new_size, std::size_t alignment = alignof(std::max_align_t))
+    void* linear_resize(void* old_memory, size_t old_size, size_t new_size, size_t alignment = alignof(std::max_align_t))
     {
         uint8_t* old_mem { static_cast<uint8_t*>(old_memory) };
 
@@ -354,7 +354,7 @@ struct ArenaAlloc : public std::pmr::memory_resource
             else
             {
                 void* new_memory { linear_allocate(new_size, alignment) };
-                std::size_t copy_size { (old_size < new_size) ? old_size : new_size };
+                size_t copy_size { (old_size < new_size) ? old_size : new_size };
 
                 // Copy across old memory to the new memory
                 memmove(new_memory, old_memory, copy_size);
@@ -373,7 +373,7 @@ struct ArenaAlloc : public std::pmr::memory_resource
     void arena_free(void* ptr) noexcept
     {}
 
-    void* do_allocate(std::size_t number_of_bytes, std::size_t alignment) override
+    void* do_allocate(size_t number_of_bytes, size_t alignment) override
     {
         std::cout << "current_offset: " << current_offset << '\n';
         std::cout << "remaining_space: " << (buffer_length - current_offset) << '\n';
@@ -381,7 +381,7 @@ struct ArenaAlloc : public std::pmr::memory_resource
     }
 
     // It does nothing
-    void do_deallocate(void* p, std::size_t number_of_bytes, std::size_t alignment) override {}
+    void do_deallocate(void* p, size_t number_of_bytes, size_t alignment) override {}
 
     bool do_is_equal(const std::pmr::memory_resource& other) const noexcept override
     {
@@ -396,8 +396,8 @@ struct ArenaAlloc : public std::pmr::memory_resource
 struct TempArena
 {
 	ArenaAlloc* lmm { nullptr };
-	std::size_t pre_offset {};
-	std::size_t cur_offset {};
+	size_t pre_offset {};
+	size_t cur_offset {};
 
     TempArena() = default;
 
@@ -449,22 +449,26 @@ struct TempArena
     }
 };
 
+/**
+ * It holds the start_offset and padding of the previous allocation
+ */
 struct StackHeader
 {
-    std::size_t padding {};
-    std::size_t start_offset {};
+    size_t start_offset {};
+    size_t padding {};
 };
 
 struct StackAlloc : public std::pmr::memory_resource
 {
     uint8_t* buffer {};
-    std::size_t buffer_length {};
-    std::size_t current_offset {};
-    std::size_t start_offset {};
+    size_t buffer_length {};
+    size_t start_offset {};
+    size_t current_offset {};
+    bool memory_from_page {};
 
     StackAlloc() = default;
 
-    explicit StackAlloc(void* backing_buffer, std::size_t backing_buffer_length) noexcept
+    explicit StackAlloc(void* backing_buffer, size_t backing_buffer_length) noexcept
     : buffer(static_cast<uint8_t*>(backing_buffer)),
       buffer_length(backing_buffer_length)
     {}
@@ -472,100 +476,126 @@ struct StackAlloc : public std::pmr::memory_resource
     /**
      * TODO: Implement
      */
-    ~StackAlloc() {}
+    ~StackAlloc()
+    {
+        if (memory_from_page ==  true)
+        {
+            // give_back_page();
+        }
+    }
 
     // Assign buffer and length in case the StackAlloc was already default-constructed
     // or all its memory was freed
-    void assign_stack(void* backing_buffer, std::size_t backing_buffer_length) noexcept
+    void assign_stack(void* backing_buffer, size_t backing_buffer_length) noexcept
     {
         buffer = static_cast<uint8_t*>(backing_buffer);
         buffer_length = backing_buffer_length;
-        start_offset = 0;
         current_offset = 0;
+        start_offset = 0;
     }
 
-    uintptr_t align_forward(uintptr_t ptr, std::size_t alignment = alignof(std::max_align_t))
+    // It returns the padding plus the size of the header of the previous allocation
+    size_t calc_padding_with_header(uintptr_t ptr, size_t header_size, size_t alignment = alignof(std::max_align_t))
     {
-        uintptr_t p, a, modulo;
+        uintptr_t p, a, modulo, padding, needed_space;
 
-        // If alignment isn't a power of 2, increase it up to the next power of 2
         if (!is_power_of_two(alignment))
         {
             alignment = round_pow_two(alignment);
         }
 
-        //HDSA_BASIC_ASSERT(is_power_of_two(alignment)), "The alignment provided isn't a power of 2!\n");
-
         p = ptr;
         a = static_cast<uintptr_t>(alignment);
-        modulo = p & (a - 1); // Same as (p % a) but faster as 'a' is a power of two
+        modulo = p & (a-1); // (size % a) as it assumes alignment is a power of two
 
-        // If 'p' address is not aligned, push the address to the next value which is aligned
+        padding = 0;
+        needed_space = 0;
+
+        // Same logic as 'align_forward'
         if (modulo != 0)
         {
-            p += a - modulo;
+            padding = a - modulo;
         }
 
-        // std::cout << "The alignment for this allocation is " << alignof(decltype(p)) << " bytes\n";
-        std::cout << "The alignment for this allocation is " << alignment << " bytes\n";
-        return p;
+        needed_space = static_cast<uintptr_t>(header_size);
+
+        if (padding < needed_space)
+        {
+            needed_space -= padding;
+
+            if ((needed_space & (a-1)) != 0)
+            {
+                padding += a * (1+(needed_space/a));
+            }
+            else
+            {
+                padding += a * (needed_space/a);
+            }
+        }
+
+        return static_cast<size_t>(padding);
     }
 
     /**
-     * In the allocation the first element is the header, then the allocated size and finally
-     * the padding.
+     * In the allocation the first element is the allocated bytes, then the padding and
+     * inside of it is the header in the last bytes of it.
      * current_offset is located after the allocated bytes without padding.
-     * start_offset is at th beginning the allocation. current_offset - start_offset gives
-     * the size of the allocation, without the padding.
-     * StackHeader stores the padding and start_offset of the previous allocation.
+     * start_offset is right at the beginning of the allocated bytes and after the StackHeader.
+     * StackHeader stores the padding and start_offset of the current allocation.
      */
-    void* stack_push(std::size_t size, std::size_t alignment = alignof(std::max_align_t)) noexcept
+    void* stack_push(size_t size, size_t alignment = alignof(std::max_align_t)) noexcept
     {
         std::cout << "###############   ALLOCATION!   ################\n";
 
-        uintptr_t current_address, next_address;
-        std::size_t padding;
-        StackHeader* header;
-
-        // if (!is_power_of_two(alignment))
-        // {
-        //     alignment = round_pow_two(alignment);
-        // }
-
-        std::cout << "size: " << size << '\n';
-        std::cout << "alignment: " << alignment << '\n';
-        std::cout << "current_offset and start_offset before: " << current_offset << ", " << start_offset << '\n';
-
-        current_address = reinterpret_cast<uintptr_t>(buffer) + static_cast<uintptr_t>(current_offset);
-        next_address = align_forward(current_address, alignment);
-        padding = next_address - current_address;
-
-        std::cout << "aligned offset: " << (next_address - reinterpret_cast<uintptr_t>(buffer)) << '\n';
-        std::cout << "padding for the previous allocation: " << padding << '\n';
-
-        // Stack allocator is out of memory
-        if (current_offset + padding + size > buffer_length)
+        if (size > 0)
         {
+            uintptr_t current_address, next_address, start, end;
+            StackHeader* header;
+            size_t padding;
+
+            std::cout << "size: " << size << '\n';
+            std::cout << "alignment: " << alignment << '\n';
+            std::cout << "start_offset and current_offset before allocation: " << start_offset << ", " << current_offset << '\n';
+            std::cout << "remaining space before allocation: " << (buffer_length - current_offset) << '\n';
+
+            start = reinterpret_cast<uintptr_t>(buffer);
+            end = start + static_cast<uintptr_t>(buffer_length);
+            current_address = start + static_cast<uintptr_t>(current_offset);
+            padding = calc_padding_with_header(size, sizeof(StackHeader), alignment);
+            next_address = current_address + static_cast<uintptr_t>(padding);
+
+            if ((current_offset + padding + size) > static_cast<size_t>(end))
+            {
+                std::cerr << "Not enough space for the latest allocation.\n";
+                return nullptr;
+            }
+
+            std::cout << "aligned offset: " << (next_address - start) << '\n';
+            std::cout << "padding for the previous allocation: " << padding << '\n';
+
+            header = reinterpret_cast<StackHeader*>(next_address - static_cast<uintptr_t>(sizeof(StackHeader)));
+            header->start_offset = start_offset;
+            header->padding = padding;
+
+            std::cout << "header offset: " << (reinterpret_cast<uintptr_t>(header) - start) << '\n';
+            std::cout << "sizeof(StackHeader): " << sizeof(StackHeader) << '\n';
+            std::cout << "header->padding: " << (header->padding) << '\n';
+            std::cout << "header->start_offset: " << (header->start_offset) << '\n';
+
+            start_offset = static_cast<size_t>(next_address - start);
+            current_offset += padding + size;
+
+            std::cout << "remaining space after allocation: " << (buffer_length - current_offset) << '\n';
+            std::cout << "start_offset and current_offset after: " << start_offset << ", " << current_offset << '\n';
+
+            return reinterpret_cast<void*>(next_address);
+        }
+        else
+        {
+            std::cout << "remaining space: " << (buffer_length - current_offset) << '\n';
+            std::cout << "Allocation size is 0, returning nullptr.\n";
             return nullptr;
         }
-
-        header = reinterpret_cast<StackHeader*>(next_address);
-        header->start_offset = start_offset;
-        header->padding = padding;
-        start_offset = static_cast<std::size_t>(next_address - reinterpret_cast<uintptr_t>(buffer)) + sizeof(StackHeader);
-
-        std::cout << "header offset: " << (reinterpret_cast<uintptr_t>(header) - reinterpret_cast<uintptr_t>(buffer)) << '\n';
-        std::cout << "sizeof(StackHeader): " << sizeof(StackHeader) << '\n';
-        std::cout << "header->padding: " << (header->padding) << '\n';
-        std::cout << "header->start_offset: " << (header->start_offset) << '\n';
-
-        current_offset += padding + sizeof(StackHeader) + size;
-
-        std::cout << "start_offset: " << start_offset << '\n';
-        std::cout << "current_offset: " << current_offset << '\n';
-
-        next_address = reinterpret_cast<uintptr_t>(buffer) + static_cast<uintptr_t>(current_offset);
-        return reinterpret_cast<void*>(next_address);
     }
 
     /**
@@ -574,69 +604,54 @@ struct StackAlloc : public std::pmr::memory_resource
      */
     void stack_pop()
     {
-        // if (ptr != nullptr)
-        // {
-        //     uintptr_t start, end, current_address;
-        //     StackHeader *header;
-        //     std::size_t temp_previous_offset;
-
-        //     start = reinterpret_cast<uintptr_t>(buffer);
-        //     end = start + static_cast<uintptr_t>(buffer_length);
-        //     current_address = reinterpret_cast<uintptr_t>(ptr);
-
-        //     HDSA_BASIC_ASSERT(((start <= current_address) && (current_address < end)), "ptr is out of bounds memory!. Called from stack_free().\n");
-
-        //     if (current_address >= (start + static_cast<uintptr_t>(current_offset)))
-        //     {
-
-        //     }
-
-        //     header = reinterpret_cast<StackHeader*>(current_address - static_cast<uintptr_t>(sizeof(StackHeader)));
-        //     temp_previous_offset = static_cast<size_t>((current_address - static_cast<uintptr_t>(header->padding)) - start);
-
-        //     HDSA_BASIC_ASSERT((temp_previous_offset == header->previous_offset), "Out of order stack allocator free.\n");
-
-        //     current_offset = previous_offset;
-        //     previous_offset = header->previous_offset;
-        // }
-
         std::cout << "----------------   DEALLOCATION!   ------------------\n";
 
-        if(!((buffer == nullptr) && (current_offset == 0)))
+        if(current_offset > 0)
         {
-            uintptr_t start, current_address;
+            uintptr_t start, previous_address;
             StackHeader* header;
-            std::size_t header_offset;
 
-            std::cout << "start_offset before: " << start_offset << '\n';
-            std::cout << "current_offset before: " << current_offset << '\n';
+            std::cout << "start_offset and current_offset before: " << start_offset << ", " << current_offset << '\n';
+            std::cout << "remaining space before deallocation: " << (buffer_length - current_offset) << '\n';
 
             start = reinterpret_cast<uintptr_t>(buffer);
-            current_address = static_cast<uintptr_t>(start_offset) + start;
+            previous_address = static_cast<uintptr_t>(start_offset) + start;
 
-            header = reinterpret_cast<StackHeader*>(current_address - static_cast<uintptr_t>(sizeof(StackHeader)));
-            header_offset = static_cast<std::size_t>(reinterpret_cast<uintptr_t>(header) - start);
+            header = reinterpret_cast<StackHeader*>(previous_address - static_cast<uintptr_t>(sizeof(StackHeader)));
 
-            std::cout << "header_offset: " << header_offset << '\n';
+            std::cout << "header_offset: " << (static_cast<size_t>(reinterpret_cast<uintptr_t>(header) - start)) << '\n';
             std::cout << "header->start_offset: " << header->start_offset << '\n';
+            std::cout << "header->padding for the previous allocation: " << header->padding << '\n';
 
-            current_offset = header_offset - header->padding;
+            current_offset = static_cast<size_t>(previous_address - start) - header->padding;
             start_offset = header->start_offset;
 
-            std::cout << "start_offset after: " << start_offset << '\n';
-            std::cout << "current_offset after: " << current_offset << '\n';
+            std::cout << "remaining space after deallocation: " << (buffer_length - current_offset) << '\n';
+            std::cout << "start_offset and current_offset after: " << start_offset << ", " << current_offset << "\n\n\n";
+        }
+        else
+        {
+            std::cout << "remaining space: " << (buffer_length - current_offset) << '\n';
+            std::cout << "The StackAlloc is empty already\n\n\n";
         }
     }
 
-    void* stack_resize(void* ptr, std::size_t old_size, std::size_t new_size, std::size_t alignment = alignof(std::max_align_t))
+    /**
+     * Changes the size of a certain allocation pointed to by ptr.
+     * If the allocation to resize isn't the latest one, a new allocation is
+     * made with the new size at the end of the stack.
+    */
+    void* stack_resize(void* ptr, size_t old_size, size_t new_size, size_t alignment = alignof(std::max_align_t))
     {
+        std::cout << "*****************   RESIZING!   ******************\n";
+
         if (ptr == nullptr)
         {
             return stack_push(new_size, alignment);
         }
         else if (new_size == 0)
         {
-            stack_pop();
+            // stack_pop();
             return nullptr;
         }
         else if (old_size == new_size)
@@ -646,12 +661,19 @@ struct StackAlloc : public std::pmr::memory_resource
         else
         {
             uintptr_t start, end, current_address;
-            std::size_t min_size { (old_size < new_size) ? old_size : new_size };
+            size_t min_size { (old_size < new_size) ? old_size : new_size };
             void* new_ptr;
 
             start = reinterpret_cast<uintptr_t>(buffer);
             end = start + static_cast<uintptr_t>(buffer_length);
             current_address = reinterpret_cast<uintptr_t>(ptr);
+
+            std::cout << "ptr offset: " << (current_address - start) << '\n';
+            std::cout << "old_size: " << old_size << '\n';
+            std::cout << "new_size: " << new_size << '\n';
+            std::cout << "aligment: " << alignment << '\n';
+            std::cout << "start_offset and current_offset before: " << start_offset << ", "<< current_offset << '\n';
+            std::cout << "remaining space before resizing: " << (buffer_length - current_offset) << '\n';
 
             HDSA_BASIC_ASSERT(((start <= current_address) && (current_address < end)), "ptr is out of bounds. Called from stack_resize().\n");
 
@@ -661,8 +683,17 @@ struct StackAlloc : public std::pmr::memory_resource
                 return nullptr;
             }
 
+            if ((current_address - start) == static_cast<uintptr_t>(start_offset))
+            {
+                current_offset = start_offset + new_size;
+                std::cout << "remaining space after resizing: " << (buffer_length - current_offset) << '\n';
+                std::cout << "start_offset and current_offset after: " << start_offset << ", "<< current_offset << '\n';
+                return ptr;
+            }
+
             new_ptr = stack_push(new_size, alignment);
-            memmove(new_ptr, ptr, min_size);
+            std::memmove(new_ptr, ptr, min_size);
+            std::cout << "new_ptr offset: " << (reinterpret_cast<uintptr_t>(new_ptr) - start) << '\n';
             return new_ptr;
         }
     }
@@ -675,15 +706,12 @@ struct StackAlloc : public std::pmr::memory_resource
         start_offset = 0;
     }
 
-    void* do_allocate(std::size_t number_of_bytes, std::size_t alignment) override
+    void* do_allocate(size_t number_of_bytes, size_t alignment) override
     {
-        std::cout << "current_offset: " << current_offset << '\n';
-        std::cout << "start_offset: " << start_offset << '\n';
-        std::cout << "remaining_space: " << (buffer_length - current_offset) << '\n';
         return stack_push(number_of_bytes, alignment);
     }
 
-    void do_deallocate(void* p, std::size_t number_of_bytes, std::size_t alignment) override
+    void do_deallocate(void* p, size_t number_of_bytes, size_t alignment) override
     {
         stack_pop();
     }

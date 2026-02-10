@@ -451,9 +451,9 @@ int main()
     SYSTEM_INFO sys_info;
     GetSystemInfo(&sys_info);
     std::cout << "Size of SYSTEM_INFO: " << sizeof(SYSTEM_INFO) << '\n';
-    std::cout << "Page size: " << static_cast<std::size_t>(sys_info.dwPageSize) << '\n';
-    std::cout << "Granularity size: " << static_cast<std::size_t>(sys_info.dwAllocationGranularity) << '\n';
-    std::cout << "Round up test: " << hdsa::round_to_block(65535, static_cast<std::size_t>(sys_info.dwAllocationGranularity)) << '\n';
+    std::cout << "Page size: " << static_cast<size_t>(sys_info.dwPageSize) << '\n';
+    std::cout << "Granularity size: " << static_cast<size_t>(sys_info.dwAllocationGranularity) << '\n';
+    std::cout << "Round up test: " << hdsa::round_to_block(65535, static_cast<size_t>(sys_info.dwAllocationGranularity)) << '\n';
 
     // uint8_t* memory { static_cast<uint8_t*>(VirtualAlloc(nullptr, 1073741824, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE)) };
     // uint8_t* memory2 { memory + 65536 };
@@ -464,7 +464,7 @@ int main()
     // temp = static_cast<void*>(static_cast<uint8_t*>(temp) + sizeof(int32_t));
     // int32_t* b { static_cast<int32_t*>(temp) };
 
-    // for (std::size_t i {}; i < 1073741824; ++i)
+    // for (size_t i {}; i < 1073741824; ++i)
     // {
     //     memory[i] = 0;
     // }
@@ -475,10 +475,10 @@ int main()
     std::cout << hdsa::round_pow_two(17) << '\n';
     std::cout << (1 & (8 - 1)) << '\n';
 
-    uint8_t* temp_buffer { static_cast<uint8_t*>(std::malloc(sizeof(uint64_t) * 16)) };
+    uint8_t* temp_buffer { static_cast<uint8_t*>(std::malloc(sizeof(uint64_t) * 32)) };
     hdsa::StackAlloc stack {};
     stack.buffer = temp_buffer;
-    stack.buffer_length = 16 * sizeof(uint64_t);
+    stack.buffer_length = 32 * sizeof(uint64_t);
 
     uint64_t* a { static_cast<uint64_t*>(stack.stack_push(sizeof(uint64_t), alignof(uint64_t))) };
     *a = 13;
@@ -501,14 +501,55 @@ int main()
     std::cout << "uc[3]: " << uc[3] << '\n';
     std::cout << "uc[4]: " << uc[4] << "\n\n\n";
 
-    uint32_t* star { static_cast<uint32_t*>(stack.stack_push(sizeof(int32_t), alignof(int32_t))) };
+    uint32_t* star { static_cast<uint32_t*>(stack.stack_push(sizeof(uint32_t), alignof(uint32_t))) };
     *star = 10;
     std::cout << "*star: " << *star << "\n\n\n";
 
-    stack.stack_pop();
-    stack.stack_pop();
-    stack.stack_pop();
-    stack.stack_pop();
+    // uc = reinterpret_cast<uint8_t*>(stack.stack_resize(static_cast<void*>(uc), 5, 6, 8));
+    // std::cout << "uc[0]: " << uc[0] << '\n';
+    // std::cout << "uc[1]: " << uc[1] << '\n';
+    // std::cout << "uc[2]: " << uc[2] << '\n';
+    // std::cout << "uc[3]: " << uc[3] << '\n';
+    // std::cout << "uc[4]: " << uc[4] << "\n\n\n";
+
+    uint8_t* uc2 { static_cast<uint8_t*>(stack.stack_push(5, 8)) };
+    uc2[0] = 'a';
+    uc2[1] = 'b';
+    uc2[2] = 'c';
+    uc2[3] = 'd';
+    uc2[4] = 'e';
+    std::cout << "uc2[0]: " << uc2[0] << '\n';
+    std::cout << "uc2[1]: " << uc2[1] << '\n';
+    std::cout << "uc2[2]: " << uc2[2] << '\n';
+    std::cout << "uc2[3]: " << uc2[3] << '\n';
+    std::cout << "uc2[4]: " << uc2[4] << "\n\n\n";
+
+    uint8_t* uc3 {static_cast<uint8_t*>(stack.stack_push(5, 1))};
+    uc3[0] = 'f';
+    uc3[1] = 'g';
+    uc3[2] = 'h';
+    uc3[3] = 'i';
+    uc3[4] = 'j';
+    std::cout << "uc3[0]: " << uc3[0] << '\n';
+    std::cout << "uc3[1]: " << uc3[1] << '\n';
+    std::cout << "uc3[2]: " << uc3[2] << '\n';
+    std::cout << "uc3[3]: " << uc3[3] << '\n';
+    std::cout << "uc3[4]: " << uc3[4] << "\n\n\n";
+
+    // star = static_cast<uint32_t*>(stack.stack_resize(star, sizeof(uint32_t), 3, 8));
+    // std::cout << "*star: " << *star << "\n\n\n";
+    // std::cout << "uc2[0]: " << uc2[0] << '\n';
+    // std::cout << "uc2[1]: " << uc2[1] << '\n';
+    // std::cout << "uc2[2]: " << uc2[2] << '\n';
+    // std::cout << "uc2[3]: " << uc2[3] << '\n';
+    // std::cout << "uc2[4]: " << uc2[4] << "\n\n\n";
+
+    // stack.stack_pop();
+    // stack.stack_pop();
+    // stack.stack_pop();
+    // stack.stack_pop();
+    // stack.stack_pop();
+    // stack.stack_pop();
 
     // std::cin.get();
 
