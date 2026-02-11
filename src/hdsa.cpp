@@ -524,32 +524,25 @@ int main()
     std::cout << "uc2[3]: " << uc2[3] << '\n';
     std::cout << "uc2[4]: " << uc2[4] << "\n\n\n";
 
-    uint8_t* uc3 {static_cast<uint8_t*>(stack.stack_push(5, 1))};
-    uc3[0] = 'f';
-    uc3[1] = 'g';
-    uc3[2] = 'h';
-    uc3[3] = 'i';
-    uc3[4] = 'j';
-    std::cout << "uc3[0]: " << uc3[0] << '\n';
-    std::cout << "uc3[1]: " << uc3[1] << '\n';
-    std::cout << "uc3[2]: " << uc3[2] << '\n';
-    std::cout << "uc3[3]: " << uc3[3] << '\n';
-    std::cout << "uc3[4]: " << uc3[4] << "\n\n\n";
+    uint16_t* us {static_cast<uint16_t*>(stack.stack_push(6, alignof(uint16_t)))};
+    us[0] = 12;
+    us[1] = 14;
+    us[2] = 16;
+    std::cout << "us[0]: " << us[0] << '\n';
+    std::cout << "us[1]: " << us[1] << '\n';
+    std::cout << "us[2]: " << us[2] << "\n\n\n";
 
-    // star = static_cast<uint32_t*>(stack.stack_resize(star, sizeof(uint32_t), 3, 8));
-    // std::cout << "*star: " << *star << "\n\n\n";
-    // std::cout << "uc2[0]: " << uc2[0] << '\n';
-    // std::cout << "uc2[1]: " << uc2[1] << '\n';
-    // std::cout << "uc2[2]: " << uc2[2] << '\n';
-    // std::cout << "uc2[3]: " << uc2[3] << '\n';
-    // std::cout << "uc2[4]: " << uc2[4] << "\n\n\n";
+    us = reinterpret_cast<uint16_t*>(stack.stack_resize(static_cast<void*>(us), 6, 13, alignof(uint16_t)));
+    std::cout << "us[0]: " << us[0] << '\n';
+    std::cout << "us[1]: " << us[1] << '\n';
+    std::cout << "us[2]: " << us[2] << "\n\n\n";
 
-    // stack.stack_pop();
-    // stack.stack_pop();
-    // stack.stack_pop();
-    // stack.stack_pop();
-    // stack.stack_pop();
-    // stack.stack_pop();
+    stack.stack_pop();
+    stack.stack_pop();
+    stack.stack_pop();
+    stack.stack_pop();
+    stack.stack_pop();
+    stack.stack_pop();
 
     // std::cin.get();
 
