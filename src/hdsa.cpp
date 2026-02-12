@@ -472,13 +472,20 @@ int main()
     // memset(memory, 0, 1073741824);
     // std::cout << "Finished allocating 1GB!\n";
 
-    std::cout << hdsa::round_pow_two(17) << '\n';
-    std::cout << (1 & (8 - 1)) << '\n';
+    hdsa::VirtualPageAlloc vp {};
+    vp.page_allocate(8);
 
-    uint8_t* temp_buffer { static_cast<uint8_t*>(std::malloc(sizeof(uint64_t) * 32)) };
+    // int32_t* i { reinterpret_cast<int32_t*>(vp.virtual_push(sizeof(int32_t))) };
+    // *i = 53;
+    // std::cout << "*i:" << *i << '\n';
+
+    // std::cout << hdsa::round_pow_two(17) << '\n';
+    // std::cout << (1 & (8 - 1)) << '\n';
+
+    // uint8_t* temp_buffer { static_cast<uint8_t*>(std::malloc(sizeof(uint64_t) * 32)) };
     hdsa::StackAlloc stack {};
-    stack.buffer = temp_buffer;
-    stack.buffer_length = 32 * sizeof(uint64_t);
+    void* temp_buffer { vp.virtual_push(32 * sizeof(uint64_t)) };
+    stack.assign_stack(temp_buffer, (32 * sizeof(uint64_t)));
 
     uint64_t* a { static_cast<uint64_t*>(stack.stack_push(sizeof(uint64_t), alignof(uint64_t))) };
     *a = 13;
@@ -543,6 +550,11 @@ int main()
     stack.stack_pop();
     stack.stack_pop();
     stack.stack_pop();
+
+    std::cin.get();
+
+    vp.virtual_pop();
+    vp.page_deallocate();
 
     // std::cin.get();
 

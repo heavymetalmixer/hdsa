@@ -1,7 +1,14 @@
 #ifndef HDSA_PMR
 #define HDSA_PMR
 
+// OS libraries
+#if defined(_WIN32) || defined(_WIN64)
 #include <windows.h>
+#elif defined(__linux__) || defined(__APPLE__) || defined(__MACH__)
+#include <sys/mman.h>
+#endif // OS libraries
+
+
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -93,19 +100,19 @@ struct VirtualPageHeader
     size_t start_offset {};
 };
 
-/* It works as the base for all the other allocators, it only provides raw un-aligned memory,
+/* 1) It works as the base for all the other allocators, it only provides raw un-aligned memory,
  * so if you use memory from this allocator directly you'll need to align it yourself.
- * It allocates pages of virtual memory with OS-specific functions of 4 Kilobytes each, but
+ * 2) This allocator gives memory to the other allocators like a Stack Allocator but
+ * without alignment.
+ * 3) It allocates pages of virtual memory with OS-specific functions of 4 Kilobytes each, but
  * given that in 32 and 64 bits PCs Windows allocates within 64K boundaries called
  * "granularity", in order to use the pages in a linear way (one after another)
  * this allocator makes allocations in blocks of 64K(each block has 16 pages).
  * To be able to keep the same behavior on all OSes, Linux and Mac also get allocations in
  * blocks of 64K.
- * The 64K blocks are also called "Virtual Memory Paragraphs" in case you wanna look
+ * 4) The 64K blocks are also called "Virtual Memory Paragraphs" in case you wanna look
  * them up on a search engine.
- * This allocator works like a Stack Allocator but without aligment so the Heeader
- * doesn't save padding.
- * To know why Windows allocates in 64K granularity visit this link:
+ * 5) To know why Windows allocates in 64K granularity visit this link:
  * https://devblogs.microsoft.com/oldnewthing/20031008-00/?p=42223
  */
 struct VirtualPageAlloc : public std::pmr::memory_resource
@@ -133,44 +140,201 @@ struct VirtualPageAlloc : public std::pmr::memory_resource
 
     ~VirtualPageAlloc()
     {
-        std::cout << "A VirtualPageAlloc resource is about to be deleted. It has " << block_amount << " blocks of " << block_size << " bytes assigned to it.\n";
-        // if (source_alloc != nullptr) { release(); }
+
     }
 
     /**
      * 1) Call the OS virtual memory allocation function with the indicated number of blocks.
      * 2) Update the block_amount by added the new blocks to it.
+     * 3) The starting address will be just one byte after the latest block allocated
+     * so all blocks stay as contiguous in the virtual memory.
      */
     void* page_allocate(size_t blocks) noexcept
     {
-        // Call the OS to get the amount of blocks of memory required.
-        // The starting address will be just one byte after the latest block allocated
-        // so all blocks stay as contiguous in the virtual memory
+        // OS selection for the virtual memory allocation function
+    #if defined(_WIN32) || defined(_WIN64)
         buffer = static_cast<uint8_t*>(VirtualAlloc(static_cast<void*>(buffer + (block_amount * block_size)), block_size * blocks, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
+    #elif defined(__linux__) || defined(__APPLE__) || defined(__MACH__)
+        buffer = static_cast<uint8_t*>(mmap(static_cast<void*>(buffer + (block_amount * block_size)), block_size * blocks, PROT_READ+PROT_WRITE, MAP_ANONYMOUS+MAP_SHARED, -1, 0));
+    #endif
+
         block_amount += blocks;
         return static_cast<void*>(buffer);
     }
 
-        /**
-     * 1) Call the OS virtual memory deallocation function with the indicated number of blocks.
+    /**
+     * 1) Call the OS virtual memory deallocation function for all the memory this allocator points to at once.
      * 2) Set all the allocator members to 0.
      */
-    void* page_deallocate(size_t blocks) noexcept
+    void page_deallocate() noexcept
     {
+        std::cout << "A VirtualPageAlloc's memory is about to be released back to the OS. It has " << block_amount << " blocks of " << block_size << " bytes assigned to it.\n";
+
+        // OS selection for the virtual memory allocation function
+        // In both cases all the memory is released at the same time
+    #if defined(_WIN32) || defined(_WIN64)
         VirtualFree(buffer, 0, MEM_RELEASE);
+    #elif defined(__linux__) || defined(__APPLE__) || defined(__MACH__)
+        munmap(static_cast<void*>(buffer), block_amount * block_size);
+    #endif
+
         buffer = nullptr;
         block_amount = 0;
         current_offset = 0;
         start_offset = 0;
     }
 
-    void* do_allocate(size_t number_of_bytes, size_t alignment) override
+    void* virtual_push(size_t size)
     {
+        std::cout << "###############   VIRTUAL MEMORY ALLOCATION!   ################\n";
 
+        size_t buffer_length { (block_amount * block_size) };
+
+        if(buffer == nullptr)
+        {
+            return nullptr;
+        }
+        else if (size > 0)
+        {
+            uintptr_t current_address, next_address, start;
+            VirtualPageHeader* header;
+
+            std::cout << "size: " << size << '\n';
+            std::cout << "start_offset and current_offset before allocation: " << start_offset << ", " << current_offset << '\n';
+            std::cout << "remaining space before allocation: " << (buffer_length - current_offset) << '\n';
+
+            start = reinterpret_cast<uintptr_t>(buffer);
+            current_address = start + static_cast<uintptr_t>(current_offset);
+
+            header = reinterpret_cast<VirtualPageHeader*>(current_address);
+            header->start_offset = start_offset;
+
+            std::cout << "header offset: " << (reinterpret_cast<uintptr_t>(header) - start) << '\n';
+            std::cout << "sizeof(VirtualPageHeader): " << sizeof(VirtualPageHeader) << '\n';
+            std::cout << "header->start_offset: " << (header->start_offset) << '\n';
+
+            next_address = current_address + static_cast<uintptr_t>(sizeof(VirtualPageHeader) + size);
+
+            if ((current_offset + sizeof(VirtualPageHeader) + size) > buffer_length)
+            {
+                std::cerr << "Not enough space for the latest allocation.\n";
+                return nullptr;
+            }
+
+            start_offset = current_offset + sizeof(VirtualPageHeader);
+            current_offset = static_cast<size_t>(next_address - start);
+
+            std::cout << "remaining space after allocation: " << (buffer_length - current_offset) << '\n';
+            std::cout << "start_offset and current_offset after: " << start_offset << ", " << current_offset << '\n';
+
+            return reinterpret_cast<void*>(start_offset + static_cast<size_t>(start));
+        }
+        else
+        {
+            std::cout << "remaining space: " << (buffer_length - current_offset) << '\n';
+            std::cout << "Allocation size is 0, returning nullptr.\n";
+            return nullptr;
+        }
+
+        return 0;
     }
 
-    // It does nothing
-    void do_deallocate(void* p, size_t number_of_bytes, size_t alignment) override {}
+    void virtual_pop()
+    {
+        std::cout << "----------------   VIRTUAL MEMORY DEALLOCATION!   ------------------\n";
+
+        size_t buffer_length { (block_amount * block_size) };
+
+        if((buffer == nullptr) || (current_offset > 0))
+        {
+            uintptr_t start, start_address;
+            VirtualPageHeader* header;
+
+            std::cout << "start_offset and current_offset before: " << start_offset << ", " << current_offset << '\n';
+            std::cout << "remaining space before deallocation: " << (buffer_length - current_offset) << '\n';
+
+            start = reinterpret_cast<uintptr_t>(buffer);
+            start_address = static_cast<uintptr_t>(start_offset) + start;
+
+            header = reinterpret_cast<VirtualPageHeader*>(start_address - static_cast<uintptr_t>(sizeof(VirtualPageHeader)));
+
+            std::cout << "header_offset: " << (static_cast<size_t>(reinterpret_cast<uintptr_t>(header) - start)) << '\n';
+            std::cout << "header->start_offset: " << header->start_offset << '\n';
+
+            current_offset = static_cast<size_t>((start_address - start) - sizeof(VirtualPageHeader));
+            start_offset = header->start_offset;
+
+            std::cout << "remaining space after deallocation: " << (buffer_length - current_offset) << '\n';
+            std::cout << "start_offset and current_offset after: " << start_offset << ", " << current_offset << "\n\n\n";
+        }
+        else
+        {
+            std::cout << "remaining space: " << (buffer_length - current_offset) << '\n';
+            std::cout << "The StackAlloc is empty already\n\n\n";
+        }
+    }
+
+    void* virtual_resize(void* ptr, size_t old_size, size_t new_size)
+    {
+        std::cout << "*****************   RESIZING!   ******************\n";
+
+        if (ptr == nullptr)
+        {
+            return virtual_push(new_size);
+        }
+        else if ((new_size == 0) || (old_size == new_size))
+        {
+            return ptr;
+        }
+        else
+        {
+            uintptr_t start, end, current_address;
+            size_t min_size { (old_size < new_size) ? old_size : new_size };
+            size_t buffer_length { (block_amount * block_size) };
+            void* new_ptr;
+
+            start = reinterpret_cast<uintptr_t>(buffer);
+            end = start + static_cast<uintptr_t>(buffer_length);
+            current_address = reinterpret_cast<uintptr_t>(ptr);
+
+            std::cout << "ptr offset: " << (current_address - start) << '\n';
+            std::cout << "old_size: " << old_size << '\n';
+            std::cout << "new_size: " << new_size << '\n';
+            std::cout << "start_offset and current_offset before: " << start_offset << ", "<< current_offset << '\n';
+            std::cout << "remaining space before resizing: " << (buffer_length - current_offset) << '\n';
+
+            HDSA_BASIC_ASSERT(((start <= current_address) && (current_address < end)), "ptr is out of bounds. Called from stack_resize().\n");
+
+            // Treat as a double free
+            if (current_address >= (start + static_cast<uintptr_t>(current_offset)))
+            {
+                return nullptr;
+            }
+
+            if ((current_address - start) == static_cast<uintptr_t>(start_offset))
+            {
+                current_offset = start_offset + new_size;
+                std::cout << "remaining space after resizing: " << (buffer_length - current_offset) << '\n';
+                std::cout << "start_offset and current_offset after: " << start_offset << ", "<< current_offset << '\n';
+                return ptr;
+            }
+
+            new_ptr = virtual_push(new_size);
+            std::memmove(new_ptr, ptr, min_size);
+            std::cout << "new_ptr offset: " << (reinterpret_cast<uintptr_t>(new_ptr) - start) << '\n';
+            return new_ptr;
+        }
+    }
+
+    void* do_allocate(size_t number_of_bytes, size_t alignment) override
+    {
+        return page_allocate(number_of_bytes);
+    }
+
+    void do_deallocate(void* p, size_t number_of_bytes, size_t alignment) override
+    {
+        page_deallocate();
+    }
 
     bool do_is_equal(const std::pmr::memory_resource& other) const noexcept override
     {
@@ -511,10 +675,12 @@ struct StackAlloc : public std::pmr::memory_resource
         start_offset = 0;
     }
 
-    // It returns the padding plus the size of the header of the current allocation
+    /**
+     * It returns the padding plus the size of the header of the current allocation
+     */
     size_t calc_padding_with_header(size_t size, size_t header_size, size_t alignment = alignof(std::max_align_t))
     {
-        uintptr_t p, a, modulo, padding, needed_space;
+        uintptr_t a, modulo, padding, needed_space;
 
         if (!is_power_of_two(alignment))
         {
@@ -565,49 +731,12 @@ struct StackAlloc : public std::pmr::memory_resource
     {
         std::cout << "###############   ALLOCATION!   ################\n";
 
-        if (size > 0)
+        if(buffer == nullptr)
         {
-            // uintptr_t current_address, next_address, start, end;
-            // StackHeader* header;
-            // size_t padding;
-
-            // std::cout << "size: " << size << '\n';
-            // std::cout << "alignment: " << alignment << '\n';
-            // std::cout << "start_offset and current_offset before allocation: " << start_offset << ", " << current_offset << '\n';
-            // std::cout << "remaining space before allocation: " << (buffer_length - current_offset) << '\n';
-
-            // start = reinterpret_cast<uintptr_t>(buffer);
-            // end = start + static_cast<uintptr_t>(buffer_length);
-            // current_address = start + static_cast<uintptr_t>(current_offset);
-            // padding = calc_padding_with_header(size, sizeof(StackHeader), alignment);
-            // next_address = current_address + static_cast<uintptr_t>(padding);
-
-            // if ((current_offset + padding + size) > static_cast<size_t>(end))
-            // {
-            //     std::cerr << "Not enough space for the latest allocation.\n";
-            //     return nullptr;
-            // }
-
-            // std::cout << "aligned offset: " << (next_address - start) << '\n';
-            // std::cout << "padding for the previous allocation: " << padding << '\n';
-
-            // header = reinterpret_cast<StackHeader*>(next_address - static_cast<uintptr_t>(sizeof(StackHeader)));
-            // header->start_offset = start_offset;
-            // header->padding = padding;
-
-            // std::cout << "header offset: " << (reinterpret_cast<uintptr_t>(header) - start) << '\n';
-            // std::cout << "sizeof(StackHeader): " << sizeof(StackHeader) << '\n';
-            // std::cout << "header->padding: " << (header->padding) << '\n';
-            // std::cout << "header->start_offset: " << (header->start_offset) << '\n';
-
-            // start_offset = static_cast<size_t>(next_address - start);
-            // current_offset += padding + size;
-
-            // std::cout << "remaining space after allocation: " << (buffer_length - current_offset) << '\n';
-            // std::cout << "start_offset and current_offset after: " << start_offset << ", " << current_offset << '\n';
-
-            // return reinterpret_cast<void*>(next_address);
-
+            return nullptr;
+        }
+        else if (size > 0)
+        {
             uintptr_t current_address, next_address, start;
             StackHeader* header;
             size_t padding;
@@ -663,7 +792,7 @@ struct StackAlloc : public std::pmr::memory_resource
     {
         std::cout << "----------------   DEALLOCATION!   ------------------\n";
 
-        if(current_offset > 0)
+        if((buffer == nullptr) || (current_offset > 0))
         {
             uintptr_t start, start_address;
             StackHeader* header;
@@ -713,6 +842,7 @@ struct StackAlloc : public std::pmr::memory_resource
         {
             uintptr_t start, end, current_address;
             size_t min_size { (old_size < new_size) ? old_size : new_size };
+            size_t padding;
             void* new_ptr;
 
             start = reinterpret_cast<uintptr_t>(buffer);
@@ -736,7 +866,8 @@ struct StackAlloc : public std::pmr::memory_resource
 
             if ((current_address - start) == static_cast<uintptr_t>(start_offset))
             {
-                current_offset = start_offset + new_size;
+                padding = calc_padding_with_header(new_size, sizeof(StackHeader), alignment);
+                current_offset = start_offset + new_size + (padding - sizeof(StackHeader));
                 std::cout << "remaining space after resizing: " << (buffer_length - current_offset) << '\n';
                 std::cout << "start_offset and current_offset after: " << start_offset << ", "<< current_offset << '\n';
                 return ptr;
