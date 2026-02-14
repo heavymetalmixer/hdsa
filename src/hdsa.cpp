@@ -2,6 +2,7 @@
 #include <string>
 #include "dyn_array.hpp"
 #include "pmr.hpp"
+#include <type_traits>
 
 struct Vec3
 {
@@ -475,28 +476,23 @@ int main()
     hdsa::VirtualPageAlloc vp {};
     vp.page_allocate(8);
 
-    // int32_t* i { reinterpret_cast<int32_t*>(vp.virtual_push(sizeof(int32_t))) };
-    // *i = 53;
-    // std::cout << "*i:" << *i << '\n';
-
-    // std::cout << hdsa::round_pow_two(17) << '\n';
-    // std::cout << (1 & (8 - 1)) << '\n';
-
-    // uint8_t* temp_buffer { static_cast<uint8_t*>(std::malloc(sizeof(uint64_t) * 32)) };
     hdsa::StackAlloc stack {};
     void* temp_buffer { vp.virtual_push(32 * sizeof(uint64_t)) };
-    stack.assign_stack(temp_buffer, (32 * sizeof(uint64_t)));
+    stack.assign_buffer(temp_buffer, (32 * sizeof(uint64_t)));
 
     uint64_t* a { static_cast<uint64_t*>(stack.stack_push(sizeof(uint64_t), alignof(uint64_t))) };
+    std::cout << "Is a aligned? " << ((hdsa::is_aligned(static_cast<void*>(a), alignof(uint64_t))) ? "Yes!" :  "No!") << '\n';
     *a = 13;
     std::cout << "*a: " << *a << "\n\n\n";
 
     temp* x { static_cast<temp*>(stack.stack_push(sizeof(temp), alignof(temp))) };
     new(x) temp();
+    std::cout << "Is x aligned? " << ((hdsa::is_aligned(static_cast<void*>(x), alignof(temp))) ? "Yes!" :  "No!") << '\n';
     std::cout << "x->a: " << x->a << '\n';
     std::cout << "x->b: " << x->b << "\n\n\n";
 
     uint8_t* uc { static_cast<uint8_t*>(stack.stack_push(5, 7)) };
+    std::cout << "Is uc aligned? " << ((hdsa::is_aligned(static_cast<void*>(uc), 8)) ? "Yes!" :  "No!") << '\n';
     uc[0] = 'x';
     uc[1] = 'y';
     uc[2] = 'z';
@@ -509,17 +505,12 @@ int main()
     std::cout << "uc[4]: " << uc[4] << "\n\n\n";
 
     uint32_t* star { static_cast<uint32_t*>(stack.stack_push(sizeof(uint32_t), alignof(uint32_t))) };
+    std::cout << "Is star aligned? " << ((hdsa::is_aligned(static_cast<void*>(star), alignof(uint32_t))) ? "Yes!" :  "No!") << '\n';
     *star = 10;
     std::cout << "*star: " << *star << "\n\n\n";
 
-    // uc = reinterpret_cast<uint8_t*>(stack.stack_resize(static_cast<void*>(uc), 5, 6, 8));
-    // std::cout << "uc[0]: " << uc[0] << '\n';
-    // std::cout << "uc[1]: " << uc[1] << '\n';
-    // std::cout << "uc[2]: " << uc[2] << '\n';
-    // std::cout << "uc[3]: " << uc[3] << '\n';
-    // std::cout << "uc[4]: " << uc[4] << "\n\n\n";
-
     uint8_t* uc2 { static_cast<uint8_t*>(stack.stack_push(5, 8)) };
+    std::cout << "Is uc2 aligned? " << ((hdsa::is_aligned(static_cast<void*>(uc2), 8)) ? "Yes!" :  "No!") << '\n';
     uc2[0] = 'a';
     uc2[1] = 'b';
     uc2[2] = 'c';
@@ -532,6 +523,7 @@ int main()
     std::cout << "uc2[4]: " << uc2[4] << "\n\n\n";
 
     uint16_t* us {static_cast<uint16_t*>(stack.stack_push(6, alignof(uint16_t)))};
+    std::cout << "Is us aligned? " << ((hdsa::is_aligned(static_cast<void*>(us), alignof(uint16_t))) ? "Yes!" :  "No!") << '\n';
     us[0] = 12;
     us[1] = 14;
     us[2] = 16;
@@ -540,6 +532,7 @@ int main()
     std::cout << "us[2]: " << us[2] << "\n\n\n";
 
     us = reinterpret_cast<uint16_t*>(stack.stack_resize(static_cast<void*>(us), 6, 13, alignof(uint16_t)));
+    std::cout << "Is us aligned after resizing? " << ((hdsa::is_aligned(static_cast<void*>(us), alignof(uint16_t))) ? "Yes!" :  "No!") << '\n';
     std::cout << "us[0]: " << us[0] << '\n';
     std::cout << "us[1]: " << us[1] << '\n';
     std::cout << "us[2]: " << us[2] << "\n\n\n";
