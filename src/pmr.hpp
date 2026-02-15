@@ -76,7 +76,7 @@ size_t round_pow_two(size_t requested_size)
     return power;
 }
 
-// Returns true if ptr is aligned
+// Returns true if "ptr" is aligned to "alignment"
 bool is_aligned(const void* ptr, const size_t alignment)
 {
     return (reinterpret_cast<uintptr_t>(ptr) % alignment) == 0;
@@ -106,9 +106,13 @@ struct VirtualPageHeader
     size_t start_offset {};
 };
 
-/* 1) It works as the base for all the other allocators, it only provides un-aligned memory.
- * 2) This allocator gives memory to the other allocators like a Stack Allocator but
- * without adding padding.
+/* 1) It works as the base for all the other allocators, it only provides ONE BLOCK of un-aligned memory.
+ * Fortunately, other allocators out there can align the addresses themselves, and the ones in this
+ * file/library always do.
+ * 2) The "end_address" is the address at the end of "buffer", in case you
+ * wanna create another VirtualPageAlloc right after this one (if the OS allows it).
+ * If you wanna use it for that don't forget to add 1 to it or you'll be corrupting memory from
+ * the last address of the current buffer.
  * 3) It allocates pages of virtual memory with OS-specific functions of 4 KB each, but
  * given that in 32 and 64 bits PCs Windows allocates within 64 KB boundaries called
  * "granularity", in order to use the pages in a linear way (one after another)
@@ -123,10 +127,9 @@ struct VirtualPageHeader
 struct VirtualPageAlloc : public std::pmr::memory_resource
 {
     uint8_t* buffer {};
+    uint8_t* end_address {};
     size_t block_amount {};
-    size_t current_offset {};
-    size_t start_offset {};
-    size_t allocation_amount {};
+    size_t buffer_length {};
 
     VirtualPageAlloc() = default;
 
@@ -144,9 +147,9 @@ struct VirtualPageAlloc : public std::pmr::memory_resource
     VirtualPageAlloc& operator=(const VirtualPageAlloc& other) = default;
     VirtualPageAlloc& operator=(VirtualPageAlloc&& other) noexcept = default;
 
-    size_t buffer_length()
+    ~VirtualPageAlloc()
     {
-        return block_amount * block_size;
+        std::cout << "A VirtualPageAlloc is about to be destroyed.\n";
     }
 
     /**
@@ -155,16 +158,24 @@ struct VirtualPageAlloc : public std::pmr::memory_resource
      * 3) The starting address will be just one byte after the latest block allocated
      * so all blocks stay as contiguous in the virtual memory.
      */
-    void* page_allocate(size_t blocks) noexcept
+    void* page_allocate(size_t size) noexcept
     {
+        size_t real_size { round_to_block(size, block_size) };
+        size_t blocks { real_size / block_size };
+
+        std::cout << "real_size: " << real_size << '\n';
+        std::cout << "Amount of blocks to allocate: " << blocks << '\n';
+
         // OS selection for the virtual memory allocation function
     #if defined(_WIN32) || defined(_WIN64)
-        buffer = static_cast<uint8_t*>(VirtualAlloc(static_cast<void*>(buffer + buffer_length()), block_size * blocks, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
+        buffer = static_cast<uint8_t*>(VirtualAlloc(static_cast<void*>(buffer + buffer_length), block_size * blocks, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
     #elif defined(__linux__) || defined(__APPLE__) || defined(__MACH__) || defined(__unix__) || defined(__unix)
         buffer = static_cast<uint8_t*>(mmap(static_cast<void*>(buffer + buffer_length()), block_size * blocks, PROT_READ+PROT_WRITE, MAP_ANONYMOUS+MAP_SHARED, -1, 0));
     #endif
 
-        block_amount += blocks;
+        block_amount = blocks;
+        buffer_length = block_amount * block_size;
+        end_address = reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(buffer) + static_cast<uintptr_t>(buffer_length));
         return static_cast<void*>(buffer);
     }
 
@@ -185,190 +196,9 @@ struct VirtualPageAlloc : public std::pmr::memory_resource
     #endif
 
         buffer = nullptr;
+        end_address = nullptr;
+        buffer_length = 0;
         block_amount = 0;
-        current_offset = 0;
-        start_offset = 0;
-        allocation_amount = 0;
-    }
-
-    /**
-     * Gives un-aligned memory already allocated by page_allocate() to the user or other allocators
-     * in a LIFO way.
-     * It uses the VirtualPageHeader to track where the previous allocation was.
-     */
-    void* virtual_push(size_t size)
-    {
-        std::cout << "###############   VIRTUAL MEMORY ALLOCATION!   ################\n";
-
-        size_t buffer_length { this->buffer_length() };
-
-        if(buffer == nullptr)
-        {
-            return nullptr;
-        }
-        else if (size > 0)
-        {
-            uintptr_t current_address, next_address, start;
-            VirtualPageHeader* header;
-
-            std::cout << "size: " << size << '\n';
-            std::cout << "start_offset and current_offset before allocation: " << start_offset << ", " << current_offset << '\n';
-            std::cout << "remaining space before allocation: " << (buffer_length - current_offset) << '\n';
-            std::cout << "allocation_amount before: " << allocation_amount << '\n';
-
-            start = reinterpret_cast<uintptr_t>(buffer);
-            current_address = start + static_cast<uintptr_t>(current_offset);
-
-            header = reinterpret_cast<VirtualPageHeader*>(current_address);
-            header->start_offset = start_offset;
-
-            std::cout << "header offset: " << (reinterpret_cast<uintptr_t>(header) - start) << '\n';
-            std::cout << "sizeof(VirtualPageHeader): " << sizeof(VirtualPageHeader) << '\n';
-            std::cout << "header->start_offset: " << (header->start_offset) << '\n';
-
-            next_address = current_address + static_cast<uintptr_t>(sizeof(VirtualPageHeader) + size);
-
-            if ((current_offset + sizeof(VirtualPageHeader) + size) > buffer_length)
-            {
-                std::cerr << "Not enough space for the latest allocation.\n";
-                return nullptr;
-            }
-
-            start_offset = current_offset + sizeof(VirtualPageHeader);
-            current_offset = static_cast<size_t>(next_address - start);
-            allocation_amount += 1;
-
-            std::cout << "remaining space after allocation: " << (buffer_length - current_offset) << '\n';
-            std::cout << "start_offset and current_offset after: " << start_offset << ", " << current_offset << '\n';
-            std::cout << "allocation_amount after: " << allocation_amount << "\n\n\n";
-
-            return reinterpret_cast<void*>(start_offset + static_cast<size_t>(start));
-        }
-        else
-        {
-            std::cout << "remaining space: " << (buffer_length - current_offset) << '\n';
-            std::cout << "Allocation size is 0, returning nullptr.\n";
-            return nullptr;
-        }
-
-        return 0;
-    }
-
-    /**
-     * Takes away the memory that virtual_push() gave to the user or other allocators.
-     * It uses the VirtualPageHeader to enforce dealloction as LIFO.
-     */
-    void virtual_pop()
-    {
-        std::cout << "----------------   VIRTUAL MEMORY DEALLOCATION!   ------------------\n";
-
-        size_t buffer_length { this->buffer_length() };
-
-        if((buffer == nullptr) || (current_offset > 0))
-        {
-            uintptr_t start, start_address;
-            VirtualPageHeader* header;
-
-            std::cout << "start_offset and current_offset before: " << start_offset << ", " << current_offset << '\n';
-            std::cout << "remaining space before deallocation: " << (buffer_length - current_offset) << '\n';
-            std::cout << "allocation_amount before: " << allocation_amount << '\n';
-
-            start = reinterpret_cast<uintptr_t>(buffer);
-            start_address = static_cast<uintptr_t>(start_offset) + start;
-
-            header = reinterpret_cast<VirtualPageHeader*>(start_address - static_cast<uintptr_t>(sizeof(VirtualPageHeader)));
-
-            std::cout << "header_offset: " << (static_cast<size_t>(reinterpret_cast<uintptr_t>(header) - start)) << '\n';
-            std::cout << "header->start_offset: " << header->start_offset << '\n';
-
-            current_offset = static_cast<size_t>((start_address - start) - sizeof(VirtualPageHeader));
-            start_offset = header->start_offset;
-            allocation_amount -= 1;
-
-            std::cout << "remaining space after deallocation: " << (buffer_length - current_offset) << '\n';
-            std::cout << "start_offset and current_offset after: " << start_offset << ", " << current_offset << "\n\n\n";
-            std::cout << "allocation_amount after: " << allocation_amount << '\n';
-        }
-        else
-        {
-            std::cout << "remaining space: " << (buffer_length - current_offset) << '\n';
-            std::cout << "The StackAlloc is empty already\n\n\n";
-        }
-    }
-
-    void* virtual_resize(void* ptr, size_t old_size, size_t new_size)
-    {
-        std::cout << "*****************   RESIZING!   ******************\n";
-
-        if (ptr == nullptr)
-        {
-            return virtual_push(new_size);
-        }
-        else if ((new_size == 0) || (old_size == new_size))
-        {
-            return ptr;
-        }
-        else
-        {
-            uintptr_t start, end, current_address;
-            size_t min_size { (old_size < new_size) ? old_size : new_size };
-            size_t buffer_length { this->buffer_length() };
-            void* new_ptr;
-
-            start = reinterpret_cast<uintptr_t>(buffer);
-            end = start + static_cast<uintptr_t>(buffer_length);
-            current_address = reinterpret_cast<uintptr_t>(ptr);
-
-            std::cout << "ptr offset: " << (current_address - start) << '\n';
-            std::cout << "old_size: " << old_size << '\n';
-            std::cout << "new_size: " << new_size << '\n';
-            std::cout << "start_offset and current_offset before: " << start_offset << ", "<< current_offset << '\n';
-            std::cout << "remaining space before resizing: " << (buffer_length - current_offset) << '\n';
-            std::cout << "allocation_amount before: " << allocation_amount << '\n';
-
-            HDSA_BASIC_ASSERT(((start <= current_address) && (current_address < end)), "ptr is out of bounds. Called from stack_resize().\n");
-
-            // Treat as a double free
-            if (current_address >= (start + static_cast<uintptr_t>(current_offset)))
-            {
-                return nullptr;
-            }
-
-            if ((current_address - start) == static_cast<uintptr_t>(start_offset))
-            {
-                if ((start_offset + new_size) <= buffer_length)
-                {
-                    current_offset = start_offset + new_size;
-                    std::cout << "remaining space after resizing: " << (buffer_length - current_offset) << '\n';
-                    std::cout << "start_offset and current_offset after: " << start_offset << ", "<< current_offset << '\n';
-                    std::cout << "allocation_amount after: " << allocation_amount << "\n\n\n";
-                    return ptr;
-                }
-
-                std::cerr << "There's not enough space for the new allocation size on the latest allocation.\n";
-                return ptr;
-            }
-
-            new_ptr = virtual_push(new_size);
-            std::memmove(new_ptr, ptr, min_size);
-            allocation_amount += 1;
-
-            std::cout << "new_ptr offset: " << (reinterpret_cast<uintptr_t>(new_ptr) - start) << '\n';
-            std::cout << "allocation_amount after: " << allocation_amount << "\n\n\n";
-            return new_ptr;
-        }
-    }
-
-    /**
-     * Resets both offsets and allocation_amount so allocations from users or other allocators
-     * that depend on this one can be made from the beginning of the buffer again, rewriting
-     * existing information inside the buffer in the process.
-     */
-    void virtual_reset()
-    {
-        start_offset = 0;
-        current_offset = 0;
-        allocation_amount = 0;
     }
 
     void* do_allocate(size_t number_of_bytes, size_t alignment) override
@@ -419,7 +249,7 @@ struct ArenaAlloc : public std::pmr::memory_resource
      * Assign an existing buffer to this resource if the resource was already constructed without it
      * or if you just wanna change the buffer it points to
      */
-    void assign_buffer(void* buff, size_t buffer_size)
+    void assign_buffer(void* buff, size_t buffer_size) noexcept
     {
         buffer = static_cast<uint8_t*>(buff);
         buffer_length = buffer_size;
@@ -435,7 +265,7 @@ struct ArenaAlloc : public std::pmr::memory_resource
      * remaining_space so allocations can be done from the beginning of the buffer again.
      * In other words: All the data in there will be overwritten once new allocations are made.
      */
-    void arena_reset()
+    void arena_reset() noexcept
     {
         previous_offset = 0;
         current_offset = 0;
@@ -449,12 +279,12 @@ struct ArenaAlloc : public std::pmr::memory_resource
     }
 
     /**
-     * Align size to alignment to prevent slowdowns caused by un-aligned
+     * Align ptr to alignment to prevent slowdowns caused by un-aligned
      * memory access by the CPU.
      */
-    size_t align_forward(size_t size, size_t alignment = alignof(std::max_align_t))
+    uintptr_t align_forward(uintptr_t ptr, size_t alignment = alignof(std::max_align_t)) noexcept
     {
-        size_t padding, modulo;
+        uintptr_t p, a, modulo;
 
         // If alignment isn't a power of 2, increase it up to the next power of 2
         if (!is_power_of_two(alignment))
@@ -462,65 +292,57 @@ struct ArenaAlloc : public std::pmr::memory_resource
             alignment = round_pow_two(alignment);
         }
 
-        std::cout << "alignment after: " << alignment << '\n';
-
-        //HDSA_BASIC_ASSERT(is_power_of_two(alignment)), "The alignment provided isn't a power of 2!\n");
-
-        modulo = size & (alignment - 1); // Same as (size % alignment) but faster as 'alignment' is a power of two
-        padding = 0;
+        p= ptr;
+        a = static_cast<uintptr_t>(alignment);
+        modulo = p & (a - 1); // Same as (size % alignment) but faster as 'alignment' is a power of two
 
         if (modulo != 0)
         {
-            padding = alignment - modulo;
+            p += a - modulo;
         }
 
-        std::cout << "padding: " << padding << '\n';
-        return padding;
+        return p;
     }
 
-    void* arena_allocate(size_t number_of_bytes, size_t alignment = alignof(std::max_align_t))
+    void* arena_allocate(size_t number_of_bytes, size_t alignment = alignof(std::max_align_t)) noexcept
     {
         HDSA_BASIC_ASSERT((number_of_bytes > 0), "Using 0 as buffer size is not allowed.\n");
 
         std::cout << "###############   ALLOCATION!   ################\n";
 
         uintptr_t start, current_address, aligned_address;
-        size_t aligned_offset, padding;
+        size_t aligned_offset;
 
         std::cout << "allocation size: " << number_of_bytes << '\n';
-        std::cout << "alignment before: " << alignment << '\n';
+        std::cout << "allocation_amount before: " << allocation_amount << '\n';
+        std::cout << "remaining_space before: " << remaining_storage() << '\n';
+        std::cout << "previous_offset before: " << previous_offset << '\n';
+        std::cout << "current_offset before: " << current_offset << '\n';
 
         start = reinterpret_cast<uintptr_t>(buffer);
         current_address = start + static_cast<uintptr_t>(current_offset);
-        // aligned_address = align_forward(current_address, alignment);
-        padding = align_forward(number_of_bytes, alignment);
-        aligned_address = current_address + static_cast<uintptr_t>(padding + number_of_bytes);
+        aligned_address = align_forward(current_address, alignment);
 
-        std::cout << "allocation_amount before: " << allocation_amount << '\n';
         std::cout << "current_address: " << current_address << '\n';
         std::cout << "aligned_address: " << aligned_address << '\n';
 
         // Subtract away the buffer address number so
         // aligned_offset becomes an actual relative offset like previous_offset and current_offset,
-        // instead of the huge address number it got from current_address
+        // instead of the huge address number aligned_address has
         aligned_offset = static_cast<size_t>(aligned_address - start);
         std::cout << "aligned offset: " << aligned_offset << '\n';
 
-        // Check to see if the backing memory has space left
-        // if (current_offset + number_of_bytes <= buffer_length) {
+        // Check to see if the buffer has space left
         if ((aligned_offset + number_of_bytes) <= buffer_length)
         {
-            previous_offset = current_offset;
-            current_offset = aligned_offset;
+            previous_offset = aligned_offset;
+            current_offset = aligned_offset + number_of_bytes;
             allocation_amount += 1;
 
-            std::cout << "previous_offset: " << previous_offset << '\n';
-            std::cout << "current_offset: " << current_offset << '\n';
-            std::cout << "remaining_space: " << (buffer_length - current_offset) << '\n';
+            std::cout << "previous_offset after: " << previous_offset << '\n';
+            std::cout << "current_offset after: " << current_offset << '\n';
+            std::cout << "remaining_space: " << remaining_storage() << '\n';
             std::cout << "allocation_amount after: " << allocation_amount << "\n\n\n";
-
-            // Zero new memory by default
-            // std::memset(ptr, 0, number_of_bytes);
 
             return reinterpret_cast<void*>(aligned_address);
         }
@@ -535,33 +357,34 @@ struct ArenaAlloc : public std::pmr::memory_resource
     {}
 
     // It changes the size of the latest allocation, not the buffer nor the object
-    void* arena_resize(void* old_memory, size_t old_size, size_t new_size, size_t alignment = alignof(std::max_align_t))
+    void* arena_resize(void* old_memory, size_t old_size, size_t new_size, size_t alignment = alignof(std::max_align_t)) noexcept
     {
         std::cout << "***************   RESIZING!   ****************\n";
 
-        uint8_t* old_mem { static_cast<uint8_t*>(old_memory) };
+        uintptr_t previous_address, start, end, old_mem;
+
+        start = reinterpret_cast<uintptr_t>(buffer);
+        end = start + static_cast<uintptr_t>(buffer_length);
+        previous_address = start + static_cast<uintptr_t>(previous_offset);
+        old_mem = reinterpret_cast<uintptr_t>(old_memory);
 
         if (!is_power_of_two(alignment))
         {
             alignment = round_pow_two(alignment);
         }
 
-        if ((old_mem == nullptr) || (old_size == 0))
+        if ((old_memory == nullptr) || (old_size == 0))
         {
             return arena_allocate(new_size, alignment);
         }
         // Checking if old mem can still fit in the space available in the buffer
-        else if ((buffer <= old_mem) && old_mem < (buffer + buffer_length))
+        else if ((start <= old_mem) && (old_mem < end))
         {
-            if ((buffer + previous_offset) == old_mem)
+            // Checking if old_mem is the latest allocation
+            if (previous_address == old_mem)
             {
                 current_offset = previous_offset + new_size;
-
-                // Zero ONLY the new memory by default
-                // if (new_size > old_size)
-                // {
-                //     std::memset(&buffer[current_offset], 0, new_size - old_size);
-                // }
+                std::cout << "Resizing the latest allocation. current_offset is now: " << current_offset << '\n';
 
                 return old_memory;
             }
@@ -683,9 +506,9 @@ struct StackAlloc : public std::pmr::memory_resource
 
     StackAlloc() = default;
 
-    explicit StackAlloc(void* backing_buffer, size_t backing_buffer_length) noexcept
-    : buffer(static_cast<uint8_t*>(backing_buffer)),
-      buffer_length(backing_buffer_length)
+    explicit StackAlloc(void* buff, size_t buff_len) noexcept
+    : buffer(static_cast<uint8_t*>(buff)),
+      buffer_length(buff_len)
     {}
 
     StackAlloc(const StackAlloc& other) = default;
