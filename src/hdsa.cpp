@@ -483,103 +483,85 @@ int main()
     std::cout << "pa buffer_length: " << pa.buffer_length << '\n';
     std::cout << "pa initial address: " << reinterpret_cast<uintptr_t>(pa.buffer) << '\n';
     std::cout << "pa final address: " << reinterpret_cast<uintptr_t>(pa.end_address) << '\n';
-    std::cout << "pa.after end_address: " << (reinterpret_cast<uintptr_t>(pa.end_address) + 1) << "\n\n\n";
+    std::cout << "pa after end_address: " << (reinterpret_cast<uintptr_t>(pa.end_address) + 1) << "\n\n\n";
 
     hdsa::StackAlloc vp { pa.buffer, pa.buffer_length };
+    void* temp_buffer { vp.stack_allocate((32 * sizeof(uint64_t))) };
 
-    hdsa::ArenaAlloc arena1 {};
-    const size_t first_buffer_size { sizeof(hdsa::StackHeader) + sizeof(UnalignedTest) };
-    void* first_buffer { vp.stack_push(first_buffer_size) };
-    arena1.assign_buffer(first_buffer, first_buffer_size);
-
-    std::cout << "Is first_buffer aligned? " << ((hdsa::is_aligned(static_cast<void*>(first_buffer), alignof(UnalignedTest))) ? "Yes!" :  "No!") << '\n';
-    std::cout << "first_buffer: " << first_buffer << '\n';
-
-    UnalignedTest* a { static_cast<UnalignedTest*>(arena1.arena_allocate (sizeof(UnalignedTest), alignof(UnalignedTest))) };
-    std::cout << "Is a aligned? " << ((hdsa::is_aligned(static_cast<void*>(a), alignof(UnalignedTest))) ? "Yes!" :  "No!") << '\n';
-    // a->c1 = 'm';
-    std::cout << "a->c1: " << a->c1 << "\n\n\n";
-
-// ----------------------------------------------------------------------------------------------------------------------------------------
-
-    hdsa::ArenaAlloc arena2 {};
-    void* temp_buffer { vp.stack_push((32 * sizeof(uint64_t))) };
-    arena2.assign_buffer(temp_buffer, (32 * sizeof(uint64_t)));
+    hdsa::PoolAlloc pool {};
+    pool.assign_buffer(temp_buffer, (32 * sizeof(uint64_t)), sizeof(uint64_t), alignof(uint8_t));
     std::cout << "Is temp_buffer aligned? " << ((hdsa::is_aligned(static_cast<void*>(temp_buffer), alignof(uint64_t))) ? "Yes!" :  "No!") << '\n';
     std::cout << "temp_buffer: " << reinterpret_cast<uintptr_t>(temp_buffer) << '\n';
     std::cout << "temp_buffer + sizeof(StackHeader): " << (reinterpret_cast<uintptr_t>(temp_buffer) + static_cast<uintptr_t>(sizeof(hdsa::StackHeader))) << '\n';
 
-    temp* x { static_cast<temp*>(arena2.arena_allocate(sizeof(temp), alignof(temp))) };
+    temp* x { static_cast<temp*>(pool.pool_allocate()) };
     new(x) temp();
-    std::cout << "x: " << reinterpret_cast<uintptr_t>(x) << '\n';
+    std::cout << "x: " << static_cast<void*>(x) << '\n';
     std::cout << "Is x aligned? " << ((hdsa::is_aligned(static_cast<void*>(x), alignof(temp))) ? "Yes!" :  "No!") << '\n';
     std::cout << "x->a: " << x->a << '\n';
     std::cout << "x->b: " << x->b << "\n\n\n";
 
-    uint8_t* uc { static_cast<uint8_t*>(arena2.arena_allocate(5, 7)) };
+    uint8_t* uc { static_cast<uint8_t*>(pool.pool_allocate()) };
     std::cout << "Is uc aligned? " << ((hdsa::is_aligned(static_cast<void*>(uc), 8)) ? "Yes!" :  "No!") << '\n';
     uc[0] = 'x';
     uc[1] = 'y';
     uc[2] = 'z';
     uc[3] = '1';
     uc[4] = '2';
+    std::cout << "uc: " << static_cast<void*>(uc) << '\n';
     std::cout << "uc[0]: " << uc[0] << '\n';
     std::cout << "uc[1]: " << uc[1] << '\n';
     std::cout << "uc[2]: " << uc[2] << '\n';
     std::cout << "uc[3]: " << uc[3] << '\n';
     std::cout << "uc[4]: " << uc[4] << "\n\n\n";
 
-    uint32_t* star { static_cast<uint32_t*>(arena2.arena_allocate(sizeof(uint32_t), alignof(uint32_t))) };
+    uint32_t* star { static_cast<uint32_t*>(pool.pool_allocate()) };
+    std::cout << "star: " << static_cast<void*>(star) << '\n';
     std::cout << "Is star aligned? " << ((hdsa::is_aligned(static_cast<void*>(star), alignof(uint32_t))) ? "Yes!" :  "No!") << '\n';
     *star = 10;
     std::cout << "*star: " << *star << "\n\n\n";
 
-    uint8_t* uc2 { static_cast<uint8_t*>(arena2.arena_allocate(5, 8)) };
+    uint8_t* uc2 { static_cast<uint8_t*>(pool.pool_allocate()) };
     std::cout << "Is uc2 aligned? " << ((hdsa::is_aligned(static_cast<void*>(uc2), 8)) ? "Yes!" :  "No!") << '\n';
     uc2[0] = 'a';
     uc2[1] = 'b';
     uc2[2] = 'c';
     uc2[3] = 'd';
     uc2[4] = 'e';
+    std::cout << "uc2: " << static_cast<void*>(uc2) << '\n';
     std::cout << "uc2[0]: " << uc2[0] << '\n';
     std::cout << "uc2[1]: " << uc2[1] << '\n';
     std::cout << "uc2[2]: " << uc2[2] << '\n';
     std::cout << "uc2[3]: " << uc2[3] << '\n';
     std::cout << "uc2[4]: " << uc2[4] << "\n\n\n";
 
-    uint16_t* us {static_cast<uint16_t*>(arena2.arena_allocate(6, alignof(uint16_t)))};
+    uint16_t* us { static_cast<uint16_t*>(pool.pool_allocate()) };
     std::cout << "Is us aligned? " << ((hdsa::is_aligned(static_cast<void*>(us), alignof(uint16_t))) ? "Yes!" :  "No!") << '\n';
     us[0] = 12;
     us[1] = 14;
     us[2] = 16;
+    std::cout << "us: " << static_cast<void*>(us) << '\n';
     std::cout << "us[0]: " << us[0] << '\n';
     std::cout << "us[1]: " << us[1] << '\n';
     std::cout << "us[2]: " << us[2] << "\n\n\n";
 
-    uc2 = reinterpret_cast<uint8_t*>(arena2.arena_resize(static_cast<void*>(uc2), 5, 13, alignof(uint8_t)));
-    std::cout << "Is uc2 aligned after resizing? " << ((hdsa::is_aligned(static_cast<void*>(uc2), alignof(uint8_t))) ? "Yes!" :  "No!") << '\n';
-    std::cout << "uc2[0]: " << uc2[0] << '\n';
-    std::cout << "uc2[1]: " << uc2[1] << '\n';
-    std::cout << "uc2[2]: " << uc2[2] << '\n';
-    std::cout << "uc2[3]: " << uc2[3] << '\n';
-    std::cout << "uc2[4]: " << uc2[4] << "\n\n\n";
+    pool.pool_deallocate(static_cast<void*>(x));
+    pool.pool_deallocate(uc);
+    pool.pool_deallocate(star);
+    pool.pool_deallocate(uc2);
+    pool.pool_deallocate(us);
 
-
-
-    // arena2.stack_pop();
-    // arena2.stack_pop();
-    // arena2.stack_pop();
-    // arena2.stack_pop();
-    // arena2.stack_pop();
+    // pool.stack_pop();
+    // pool.stack_pop();
+    // pool.stack_pop();
+    // pool.stack_pop();
+    // pool.stack_pop();
     // arena1.stack_pop();
 
-    std::cin.get();
-
-    vp.stack_pop();
-    vp.stack_pop();
+    vp.stack_deallocate();
     pa.page_deallocate();
 
-    // std::cin.get();
+    std::cin.get();
 
     // *a = 5;
     // *b = 3;
