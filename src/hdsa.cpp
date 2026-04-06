@@ -478,6 +478,10 @@ int main()
     // memset(memory, 0, 1073741824);
     // std::cout << "Finished allocating 1GB!\n";
 
+    hdsa::DynArray<int32_t> d;
+    d = {};
+    std::cout << (d.is_empty() ? "True" : "False") << '\n';
+
     hdsa::VirtualPageAlloc pa {};
     pa.page_allocate(458753);
     std::cout << "pa buffer_length: " << pa.buffer_length << '\n';

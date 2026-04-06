@@ -838,7 +838,13 @@ public:
     // No reallocations unless the other's size is bigger than the DynArray's capacity
     DynArray& operator=(std::initializer_list<T> other)
     {
-        HDSA_BASIC_ASSERT((other.size() > 0), "The size of the initializer list of T to copy must be bigger than 0.\n");
+        if (other.size() == 0)
+        {
+            m_first_ptr = nullptr;
+            m_capacity = 0;
+            m_size = 0;
+            return *this;
+        }
 
         for (std::size_t i {}; i < m_size; i++)
         {

@@ -101,7 +101,7 @@ size_t round_to_block(size_t requested_size, size_t sys_block_size)
  * Align ptr to alignment to prevent slowdowns caused by un-aligned
  * memory access by the CPU.
  */
-uintptr_t align_forward_uintptr(uintptr_t ptr, size_t alignment = alignof(std::max_align_t)) noexcept
+uintptr_t align_forward_uintptr(uintptr_t ptr, size_t alignment = 2 * sizeof(void *)) noexcept
 {
     uintptr_t p {};
     uintptr_t a {};
@@ -128,7 +128,7 @@ uintptr_t align_forward_uintptr(uintptr_t ptr, size_t alignment = alignof(std::m
 /**
  * Same as align_forward_uintptr but for size_t
  */
-uintptr_t align_forward_size(size_t ptr, size_t alignment = alignof(std::max_align_t)) noexcept
+uintptr_t align_forward_size(size_t ptr, size_t alignment = 2 * sizeof(void *)) noexcept
 {
     size_t p {};
     size_t a {};
@@ -155,7 +155,7 @@ uintptr_t align_forward_size(size_t ptr, size_t alignment = alignof(std::max_ali
 /**
  * It returns the padding plus the size of the header of the current allocation
  */
-size_t calc_padding_with_header(uintptr_t ptr, size_t header_size, uintptr_t alignment = alignof(std::max_align_t))
+size_t calc_padding_with_header(uintptr_t ptr, size_t header_size, uintptr_t alignment = 2 * sizeof(void *))
 {
     uintptr_t p {};
     uintptr_t a {};
@@ -204,11 +204,6 @@ size_t calc_padding_with_header(uintptr_t ptr, size_t header_size, uintptr_t ali
 // A block is 16 pages of 4K each
 constexpr size_t page_size { 4096 };
 constexpr size_t block_size { page_size * 16 }; // 65536
-
-struct VirtualPageHeader
-{
-    size_t start_offset {};
-};
 
 /* 1) It works as the base for all the other allocators, it only provides ONE BLOCK of un-aligned memory.
  * Fortunately, other allocators out there can align the addresses themselves, and the ones in this
@@ -329,6 +324,10 @@ struct ArenaAlloc : public std::pmr::memory_resource
     size_t allocation_amount {};
 
     ArenaAlloc() = default;
+    ArenaAlloc(const ArenaAlloc& other) = default;
+    ArenaAlloc(ArenaAlloc&& other) noexcept = default;
+    ArenaAlloc& operator=(const ArenaAlloc& other) = default;
+    ArenaAlloc& operator=(ArenaAlloc&& other) noexcept = default;
 
     explicit ArenaAlloc(void* buff, size_t buffer_size) noexcept
     : buffer { static_cast<uint8_t*>(buff) },
@@ -338,11 +337,6 @@ struct ArenaAlloc : public std::pmr::memory_resource
         HDSA_BASIC_ASSERT((buffer_length > 0), "The size of the buffer is 0!\n");
         std::cout << "An Arena memory resource was created, and a buffer of " << buffer_length << " bytes was assigned to it\n";
     };
-
-    ArenaAlloc(const ArenaAlloc& other) = default;
-    ArenaAlloc(ArenaAlloc&& other) noexcept = default;
-    ArenaAlloc& operator=(const ArenaAlloc& other) = default;
-    ArenaAlloc& operator=(ArenaAlloc&& other) noexcept = default;
 
     /**
      * Assign an existing buffer to this resource if the resource was already constructed without it
@@ -364,7 +358,7 @@ struct ArenaAlloc : public std::pmr::memory_resource
         return buffer_length - current_offset;
     }
 
-    void* arena_allocate(size_t number_of_bytes, size_t alignment = alignof(std::max_align_t)) noexcept
+    void* arena_allocate(size_t number_of_bytes, size_t alignment = 2 * sizeof(void *)) noexcept
     {
         HDSA_BASIC_ASSERT((number_of_bytes > 0), "Using 0 as buffer size is not allowed.\n");
 
@@ -419,7 +413,7 @@ struct ArenaAlloc : public std::pmr::memory_resource
     {}
 
     // It changes the size of the latest allocation, not the buffer nor the object
-    void* arena_resize(void* old_memory, size_t old_size, size_t new_size, size_t alignment = alignof(std::max_align_t)) noexcept
+    void* arena_resize(void* old_memory, size_t old_size, size_t new_size, size_t alignment = 2 * sizeof(void *)) noexcept
     {
         std::cout << "***************   RESIZING!   ****************\n";
 
@@ -511,17 +505,16 @@ struct TempArena
     size_t cur_offset {};
 
     TempArena() = default;
+    TempArena(const TempArena& other) = default;
+    TempArena(TempArena&& other) noexcept = default;
+    TempArena& operator=(const TempArena& other) = default;
+    TempArena& operator=(TempArena&& other) noexcept = default;
 
     explicit TempArena(ArenaAlloc* ar) noexcept
     : arena(ar),
       pre_offset(arena->previous_offset),
       cur_offset(arena->current_offset)
     {}
-
-    TempArena(const TempArena& other) = default;
-    TempArena(TempArena&& other) noexcept = default;
-    TempArena& operator=(const TempArena& other) = default;
-    TempArena& operator=(TempArena&& other) noexcept = default;
 
     // If you wanna assign a ArenaAlloc to a default-constructed TempArena,
     // or to reuse the same TempArena for a different ArenaAlloc
@@ -578,16 +571,15 @@ struct StackAlloc : public std::pmr::memory_resource
     size_t allocation_amount {};
 
     StackAlloc() = default;
+    StackAlloc(const StackAlloc& other) = default;
+    StackAlloc(StackAlloc&& other) noexcept = default;
+    StackAlloc& operator=(const StackAlloc& other) = default;
+    StackAlloc& operator=(StackAlloc&& other) noexcept = default;
 
     explicit StackAlloc(void* buff, size_t buff_len) noexcept
     : buffer(static_cast<uint8_t*>(buff)),
       buffer_length(buff_len)
     {}
-
-    StackAlloc(const StackAlloc& other) = default;
-    StackAlloc(StackAlloc&& other) noexcept = default;
-    StackAlloc& operator=(const StackAlloc& other) = default;
-    StackAlloc& operator=(StackAlloc&& other) noexcept = default;
 
     // Assign buffer and length in case the StackAlloc was already default-constructed
     // or all its memory was freed
@@ -606,7 +598,7 @@ struct StackAlloc : public std::pmr::memory_resource
      * previous_offset is the same but for the previous allocation.
      * StackHeader stores the padding and start_offset of the current allocation.
      */
-    void* stack_allocate(size_t size, size_t alignment = alignof(std::max_align_t)) noexcept
+    void* stack_allocate(size_t size, size_t alignment = 2 * sizeof(void *)) noexcept
     {
         std::cout << "###############   ALLOCATION!   ################\n";
 
@@ -648,8 +640,9 @@ struct StackAlloc : public std::pmr::memory_resource
             }
 
             next_address = current_address + static_cast<uintptr_t>(padding);
-            header = reinterpret_cast<StackHeader*>(static_cast<size_t>(next_address) - sizeof(StackHeader));
-            header->padding = static_cast<uint8_t>(padding);
+            // header = reinterpret_cast<StackHeader*>(static_cast<size_t>(next_address) - sizeof(StackHeader));
+            header = reinterpret_cast<StackHeader*>(next_address - static_cast<uintptr_t>(sizeof(StackHeader)));
+            header->padding = padding;
             header->start_offset = start_offset; // store the previous start_offset in the header
 
             std::cout << "current_adress: " << current_address << '\n';
@@ -660,7 +653,7 @@ struct StackAlloc : public std::pmr::memory_resource
             std::cout << "header->start_offset: " << (header->start_offset) << '\n';
             std::cout << "header->padding: " << (header->padding) << '\n';
 
-            start_offset = next_address - start; // Store the previous offset
+            start_offset = static_cast<size_t>(next_address - start); // Store the previous offset
             current_offset = start_offset + size;
             allocation_amount += 1;
 
@@ -688,13 +681,13 @@ struct StackAlloc : public std::pmr::memory_resource
         if((buffer != nullptr) && (current_offset > 0))
         {
             uintptr_t start {};
-            uintptr_t end {};
+            // uintptr_t end {};
             uintptr_t current_address {};
             StackHeader* header {};
             size_t temp_prev_offset {};
 
             start = reinterpret_cast<uintptr_t>(buffer);
-            end = start + static_cast<uintptr_t>(buffer_length);
+            // end = start + static_cast<uintptr_t>(buffer_length);
             // current_address = reinterpret_cast<uintptr_t>(ptr);
             current_address = static_cast<uintptr_t>(start_offset) + start;
 
@@ -702,7 +695,8 @@ struct StackAlloc : public std::pmr::memory_resource
             std::cout << "start_offset and current_offset before allocation: " << start_offset << ", " << current_offset << '\n';
             std::cout << "current_address: " << current_address << '\n';
 
-            header = reinterpret_cast<StackHeader*>(static_cast<size_t>(current_address) - sizeof(StackHeader));
+            // header = reinterpret_cast<StackHeader*>(static_cast<size_t>(current_address) - sizeof(StackHeader));
+            header = reinterpret_cast<StackHeader*>(current_address - static_cast<uintptr_t>(sizeof(StackHeader)));
             temp_prev_offset = start_offset - header->padding;
 
             std::cout << "header offset " << (reinterpret_cast<uintptr_t>(header) - start) << '\n';
@@ -731,7 +725,7 @@ struct StackAlloc : public std::pmr::memory_resource
      * If the allocation to resize isn't the latest one, a new allocation is
      * made with the new size at the end of the stack.
     */
-    void* stack_resize(void* ptr, size_t old_size, size_t new_size, size_t alignment = alignof(std::max_align_t))
+    void* stack_resize(void* ptr, size_t old_size, size_t new_size, size_t alignment = 2 * sizeof(void *))
     {
         std::cout << "*****************   RESIZING!   ******************\n";
 
@@ -766,7 +760,8 @@ struct StackAlloc : public std::pmr::memory_resource
                 return nullptr;
             }
 
-            header = reinterpret_cast<StackHeader*>(static_cast<size_t>(current_address) - sizeof(StackHeader));
+            // header = reinterpret_cast<StackHeader*>(static_cast<size_t>(current_address) - sizeof(StackHeader));
+            header = reinterpret_cast<StackHeader*>(current_address - static_cast<uintptr_t>(sizeof(StackHeader)));
 
             std::cout << "header offset " << (reinterpret_cast<uintptr_t>(header) - start) << '\n';
             std::cout << "header: " << static_cast<void*>(header) << '\n';
@@ -822,9 +817,6 @@ struct StackAlloc : public std::pmr::memory_resource
     }
 };
 
-/**
- *
- */
 struct PoolFreeNode
 {
     PoolFreeNode* next {};
@@ -836,8 +828,13 @@ struct PoolAlloc : public std::pmr::memory_resource
     size_t buffer_length {};
     size_t chunk_size {};
     PoolFreeNode* head {};
+    size_t allocation_amount {};
 
     PoolAlloc() = default;
+    PoolAlloc(const PoolAlloc& other) = default;
+    PoolAlloc(PoolAlloc&& other) noexcept = default;
+    PoolAlloc& operator=(const PoolAlloc& other) = default;
+    PoolAlloc& operator=(PoolAlloc&& other) noexcept = default;
 
     explicit PoolAlloc(void* backing_buffer, size_t backing_buffer_length, size_t chunk_s, size_t chunk_alignment) noexcept
     {
@@ -889,6 +886,35 @@ struct PoolAlloc : public std::pmr::memory_resource
     }
 
     /**
+     * It sets every node to be free, one by one.
+     */
+    void pool_reset() noexcept
+    {
+        std::cout << ".............................. POOL RESET ..................................\n";
+
+        size_t chunk_count { buffer_length / chunk_size };
+
+        std::cout << "buffer_length: " << buffer_length << '\n';
+        std::cout << "chunk_size: " << chunk_size << '\n';
+        std::cout << "chunk_count: " << chunk_count << '\n';
+
+        // Set all chunks to be free
+        for (size_t i {}; i < chunk_count; i++)
+        {
+            void* ptr { static_cast<void*>(&buffer[i * chunk_size]) };
+            PoolFreeNode* node { reinterpret_cast<PoolFreeNode*>(ptr) };
+
+            // Push a node into the free chunk list
+            node->next = head;
+            head = node;
+
+            std::cout << "current head being set 'free': " << static_cast<void*>(head) << '\n';
+        }
+
+        allocation_amount = 0;
+    }
+
+    /**
      * It disconnects the current "head" from the list of free chunks and returns it
      */
     void* pool_allocate() noexcept
@@ -910,6 +936,8 @@ struct PoolAlloc : public std::pmr::memory_resource
 
         std::cout << "head after allocation: " << static_cast<void*>(head) << '\n';
         std::cout << "node after allocation: " << static_cast<void*>(node) << '\n';
+
+        allocation_amount += 1;
 
         return node;
     }
@@ -939,35 +967,9 @@ struct PoolAlloc : public std::pmr::memory_resource
         node = reinterpret_cast<PoolFreeNode*>(ptr);
         node->next = head;
         head = node;
+        allocation_amount -= 1;
 
         std::cout << "head after deallocation: " << head << '\n';
-    }
-
-    /**
-     * It sets every node to be free, one by one.
-     */
-    void pool_reset() noexcept
-    {
-        std::cout << ".............................. POOL RESET ..................................\n";
-
-        size_t chunk_count { buffer_length / chunk_size };
-
-        std::cout << "buffer_length: " << buffer_length << '\n';
-        std::cout << "chunk_size: " << chunk_size << '\n';
-        std::cout << "chunk_count: " << chunk_count << '\n';
-
-        // Set all chunks to be free
-        for (size_t i {}; i < chunk_count; i++)
-        {
-            void* ptr { static_cast<void*>(&buffer[i * chunk_size]) };
-            PoolFreeNode* node { reinterpret_cast<PoolFreeNode*>(ptr) };
-
-            // Push a node into the free chunk list
-            node->next = head;
-            head = node;
-
-            std::cout << "current head being set 'free': " << static_cast<void*>(head) << '\n';
-        }
     }
 
     void* do_allocate(size_t number_of_bytes, size_t alignment) override
@@ -983,6 +985,326 @@ struct PoolAlloc : public std::pmr::memory_resource
     bool do_is_equal(const std::pmr::memory_resource& other) const noexcept override
     {
         return this == dynamic_cast<const PoolAlloc*>(&other);
+    }
+};
+
+struct FreeListHeader
+{
+    size_t block_size {};
+    size_t padding {};
+};
+
+struct FreeListNode
+{
+    size_t block_size {}; // block_size includes the size of FreeListNode
+    FreeListNode* next {};
+};
+
+enum struct PlacementPolicy
+{
+    find_first = 0,
+    find_best
+};
+
+struct FreeListAlloc : public std::pmr::memory_resource
+{
+    uint8_t* buffer {};
+    size_t size {};
+    size_t used_bytes {};
+    FreeListNode* head {};
+    PlacementPolicy policy { PlacementPolicy::find_best };
+
+    FreeListAlloc() = default;
+    FreeListAlloc(const FreeListAlloc& other) = default;
+    FreeListAlloc(FreeListAlloc&& other) noexcept = default;
+    FreeListAlloc& operator=(const FreeListAlloc& other) = default;
+    FreeListAlloc& operator=(FreeListAlloc&& other) noexcept = default;
+
+    explicit FreeListAlloc(void* data, size_t new_size) noexcept
+    : buffer { static_cast<uint8_t*>(data) },
+      size { new_size }
+    {
+        free_list_reset();
+    }
+
+    void free_list_reset()
+    {
+        used_bytes = 0;
+        // Maybe the first header should be reset too
+        FreeListNode* first_node { reinterpret_cast<FreeListNode*>(buffer) };
+        first_node->block_size = size;
+        first_node->next = nullptr;
+        head = first_node;
+    }
+
+    /**
+     * It looks for the first free node that has at least the required size plus the size of FreeListHeader
+     */
+    FreeListNode* free_list_find_first(size_t allocation_size, size_t alignment, size_t* allocation_padding, FreeListNode** allocation_previous_node)
+    {
+        FreeListNode* node { head };
+        FreeListNode* previous_node {};
+        size_t padding {};
+
+        while (node != nullptr)
+        {
+            padding = calc_padding_with_header(reinterpret_cast<uintptr_t>(node), static_cast<uintptr_t>(alignment), sizeof(FreeListHeader));
+            size_t required_space { allocation_size + padding };
+
+            if (node->block_size >= required_space)
+            {
+                break;
+            }
+
+            previous_node = node;
+            node = node->next;
+        }
+
+        if (allocation_padding != nullptr)
+        {
+            *allocation_padding = padding;
+        }
+
+        if (allocation_previous_node != nullptr)
+        {
+            *allocation_previous_node = previous_node;
+        }
+
+        return node;
+    }
+
+    /**
+     * It looks for the node has the smallest size that can fit the required size plus the size of FreeListHeader
+     */
+    FreeListNode* free_list_find_best(size_t allocation_size, size_t alignment, size_t* allocation_padding, FreeListNode** allocation_previous_node)
+    {
+        FreeListNode* node { head };
+        FreeListNode* previous_node {};
+        FreeListNode* best_node {};
+        size_t padding {};
+        size_t smallest_difference { ~static_cast<size_t>(0) }; // Maximum representable number by size_t,
+        // which for 64 bits CPUs is 18446744073709551615, or ((2^64) - 1)
+
+        while (node != nullptr)
+        {
+            padding = calc_padding_with_header(reinterpret_cast<uintptr_t>(node), static_cast<uintptr_t>(alignment), sizeof(FreeListHeader));
+            size_t required_space { allocation_size + padding };
+
+            if ((node->block_size >= required_space) && ((node->block_size - required_space) < smallest_difference))
+            {
+                best_node = node;
+
+                // Different line: Updates the smallest_difference to a smaller value every time the if is true
+                smallest_difference = node->block_size - required_space;
+            }
+
+            previous_node = node;
+            node = node->next;
+        }
+
+        if (allocation_padding != nullptr)
+        {
+            *allocation_padding = padding;
+        }
+
+        if (allocation_previous_node != nullptr)
+        {
+            *allocation_previous_node = previous_node;
+        }
+
+        return best_node;
+    }
+
+    // It adds new_node to the "free list" of nodes. If new_node is null this function does nothing
+    void free_list_node_insert(FreeListNode** head_node, FreeListNode* prev_node, FreeListNode* new_node)
+    {
+        if (new_node != nullptr)
+        {
+            if (prev_node == nullptr)
+            {
+                if (*head_node != nullptr)
+                {
+                    new_node->next = *head_node;
+                }
+                else
+                {
+                    *head_node = new_node;
+                }
+            }
+            else
+            {
+                if (prev_node->next == nullptr)
+                {
+                    prev_node->next = new_node;
+                    new_node->next = nullptr;
+                }
+                else
+                {
+                    new_node->next = prev_node->next;
+                    prev_node->next = new_node;
+                }
+            }
+        }
+    }
+
+    // It removes del_node from the "free list" of nodes
+    void free_list_node_remove(FreeListNode** head_node, FreeListNode* prev_node, FreeListNode* del_node)
+    {
+        if (del_node != nullptr)
+        {
+            if (prev_node == nullptr)
+            {
+                *head_node = del_node->next;
+            }
+            else
+            {
+                prev_node->next = del_node->next;
+                del_node->next = nullptr; // Different line
+            }
+        }
+    }
+
+    // Allocates within a node according to the PlacementPolicy in use
+    void* free_list_allocate(size_t allocation_size, size_t alignment = 2 * sizeof(void *))
+    {
+        size_t padding {};
+        FreeListNode* previous_node {};
+        FreeListNode* node {};
+        size_t alignment_padding {};
+        size_t required_space {};
+        size_t remaining_space {};
+        FreeListHeader* header_ptr {};
+
+        if (allocation_size < sizeof(FreeListNode))
+        {
+            allocation_size = sizeof(FreeListNode);
+        }
+
+        if (alignment < 8)
+        {
+            alignment = 8;
+        }
+
+        if (policy == PlacementPolicy::find_best)
+        {
+            node = free_list_find_best(allocation_size, alignment, &padding, &previous_node);
+        }
+        else
+        {
+            node = free_list_find_first(allocation_size, alignment, &padding, &previous_node);
+        }
+
+        HDSA_BASIC_ASSERT((node != nullptr), "Can't allocate more space for the FreeListAlloc.\n");
+
+        // alignment_padding = padding - sizeof(FreeListHeader);
+        required_space = allocation_size + padding;
+
+        // Thanks to the functions free_list_find_best and free_list_find_first (node->block_size - required_space) will always be positive or 0
+        remaining_space = node->block_size - required_space;
+
+        // If remaining_space is bigger than the size of a FreeListNode, then proceed to create a new node and add it to the free list of nodes
+        // if (remaining_space > 0)
+        if (remaining_space > sizeof(FreeListNode))
+        {
+            FreeListNode* new_node { reinterpret_cast<FreeListNode*>(reinterpret_cast<uintptr_t>(node) + static_cast<uintptr_t>(required_space)) };
+            new_node->block_size = remaining_space;
+            free_list_node_insert(&head, node, new_node);
+        }
+
+        // Remove node from the free list of nodes, AKA it's now being used
+        free_list_node_remove(&head, previous_node, node);
+
+        // Set the header for the node being allocated. This header is located (most of the time) in a different address from node
+        // The whole node->block_size is supposed to be able to hold the padding and the bytes being allocated, so the padding starts
+        // from the address of node, the data starts after the padding, and the header_ptr is right before the data, hence why
+        // "alignment_padding" is smaller than padding
+        alignment_padding = padding - sizeof(FreeListHeader);
+        header_ptr = reinterpret_cast<FreeListHeader*>(reinterpret_cast<uintptr_t>(node) + static_cast<uintptr_t>(alignment_padding));
+        // header_ptr->block_size = required_space;
+
+        // Different line. Unlike with free blocks, block_size for a used block is only the allocation size plus the size of the header
+        header_ptr->block_size = allocation_size + sizeof(FreeListHeader);
+        header_ptr->padding = alignment_padding;
+
+        used_bytes += required_space;
+
+        return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(header_ptr) + static_cast<uintptr_t>(sizeof(FreeListHeader)));
+    }
+
+    // Tries to combine free_node and_free_node->next into a single free block
+    // and tries to do the same with previous_node and free_node afterwards
+    void free_list_coalescence(FreeListNode* previous_node, FreeListNode* free_node)
+    {
+        if
+        (
+            (free_node->next != nullptr) &&
+            (reinterpret_cast<FreeListNode*>(reinterpret_cast<uintptr_t>(free_node) + static_cast<uintptr_t>(free_node->block_size)) == free_node->next)
+        )
+        {
+            free_node->block_size += free_node->next->block_size;
+            free_list_node_remove(&head, free_node, free_node->next);
+        }
+
+        if
+        (
+            (previous_node->next != nullptr) &&
+            (reinterpret_cast<FreeListNode*>(reinterpret_cast<uintptr_t>(previous_node) + static_cast<uintptr_t>(previous_node->block_size)) == free_node)
+        )
+        {
+            previous_node->block_size += free_node->block_size;
+            free_list_node_remove(&head, previous_node, free_node);
+        }
+    }
+
+    // Adds the block to the free list of nodes, reduces the amount of space in use and merges two contiguous blocks if possible
+    void free_list_deallocate(void* ptr)
+    {
+        FreeListHeader* header {};
+        FreeListNode* free_node {};
+        FreeListNode* node {};
+        FreeListNode* previous_node {};
+
+        if (ptr == nullptr) { return; }
+
+        // Put the free_node where the header of ptr is
+        header = reinterpret_cast<FreeListHeader*>(reinterpret_cast<uintptr_t>(ptr) - static_cast<uintptr_t>(sizeof(FreeListHeader)));
+        // free_node = reinterpret_cast<FreeListNode*>(header);
+        free_node = reinterpret_cast<FreeListNode*>(reinterpret_cast<uintptr_t>(header) - static_cast<uintptr_t>(header->padding)); // Different line.
+        free_node->block_size = header->block_size + header->padding;
+        free_node->next = nullptr;
+
+        node = head;
+
+        while (node != nullptr)
+        {
+            if (free_node < node)
+            {
+                free_list_node_insert(&head, previous_node, free_node);
+                break;
+            }
+
+            previous_node = node;
+            node = node->next;
+        }
+
+        used_bytes -= free_node->block_size;
+        free_list_coalescence(previous_node, free_node);
+    }
+
+
+    void* do_allocate(size_t number_of_bytes, size_t alignment) override
+    {
+        return free_list_allocate(number_of_bytes, alignment);
+    }
+
+    void do_deallocate(void* p, size_t number_of_bytes, size_t alignment) override
+    {
+        free_list_deallocate(p);
+    }
+
+    bool do_is_equal(const std::pmr::memory_resource& other) const noexcept override
+    {
+        return this == dynamic_cast<const FreeListAlloc*>(&other);
     }
 };
 
