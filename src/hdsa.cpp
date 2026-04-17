@@ -1,5 +1,3 @@
-#include <vector>
-#include <string>
 #include "dyn_array.hpp"
 #include "pmr.hpp"
 #include <type_traits>
@@ -441,6 +439,63 @@ struct temp
     int16_t b { 5 };
 };
 
+
+
+struct BaseVtable;
+
+struct Base
+{
+	const BaseVtable* vptr;
+};
+
+struct BaseVtable
+{
+    int32_t (*area)(const Base* const self);
+    void (*print_area)(const Base* const self);
+};
+
+int32_t base_rand(const Base* const b)
+{
+    // return 6;
+    return b->vptr->area(b);
+}
+
+//####################################################################################
+
+struct Derived
+{
+    Base base;
+    int32_t width;
+    int32_t height;
+};
+
+int32_t derived_area(const Derived* const self)
+{
+    return self->width * self->height;
+}
+
+void derived_print_area(const Derived* const self)
+{
+    std::cout << (derived_area(self) + 3) << '\n';
+}
+
+void derived_constructor(Derived* const self, int32_t widtha, int32_t heighta)
+{
+    static const BaseVtable vtbl
+    {
+        .area = reinterpret_cast<int32_t (*)(const Base* const)>(&derived_area),
+        .print_area = reinterpret_cast<void (*)(const Base* const)>(&derived_print_area)
+    };
+
+    self->base.vptr = &vtbl;
+    self->width = widtha;
+    self->height = heighta;
+}
+
+
+
+
+
 int main()
 {
     // void* buffer1 { ::operator new(((sizeof(uint8_t) * sizeof(Vec3)) + alignof(int)) * 4, static_cast<std::align_val_t>(alignof(uint8_t)), std::nothrow) };
@@ -453,6 +508,28 @@ int main()
     // new(v1) Vec3(3, 3, 3, 4, std::pmr::polymorphic_allocator<uint8_t>(&memory1));
     // std::cout << "v1 is: " << *v1 << '\n';
     // std::cout << "mem is: " << v1->mem << '\n';
+
+    Derived d;
+    derived_constructor(&d, 11, 12);
+
+    std::cout << derived_area(&d) << '\n';
+    derived_print_area(&d);
+
+    std::cout << "d->base.vptr: " << d.base.vptr << '\n';
+
+    std::cout << base_rand(reinterpret_cast<Base*>(&d)) << '\n';
+
+    Derived d2;
+    derived_constructor(&d2, 6, 4);
+
+    std::cout << derived_area(&d2) << '\n';
+    derived_print_area(&d2);
+    std::cout << base_rand(reinterpret_cast<Base*>(&d2)) << '\n';
+
+    std::cout << "d2->base.vptr: " << d2.base.vptr << "\n\n\n";
+
+
+
 
     SYSTEM_INFO sys_info;
     GetSystemInfo(&sys_info);
@@ -478,10 +555,6 @@ int main()
     // memset(memory, 0, 1073741824);
     // std::cout << "Finished allocating 1GB!\n";
 
-    hdsa::DynArray<int32_t> d;
-    d = {};
-    std::cout << (d.is_empty() ? "True" : "False") << '\n';
-
     hdsa::VirtualPageAlloc pa {};
     pa.page_allocate(458753);
     std::cout << "pa buffer_length: " << pa.buffer_length << '\n';
@@ -489,23 +562,25 @@ int main()
     std::cout << "pa final address: " << reinterpret_cast<uintptr_t>(pa.end_address) << '\n';
     std::cout << "pa after end_address: " << (reinterpret_cast<uintptr_t>(pa.end_address) + 1) << "\n\n\n";
 
-    hdsa::StackAlloc vp { pa.buffer, pa.buffer_length };
-    void* temp_buffer { vp.stack_allocate((32 * sizeof(uint64_t))) };
+    size_t allocation_size { 64 * sizeof(uint64_t) };
 
-    hdsa::PoolAlloc pool {};
-    pool.assign_buffer(temp_buffer, (32 * sizeof(uint64_t)), sizeof(uint64_t), alignof(uint8_t));
+    hdsa::StackAlloc vp { pa.buffer, pa.buffer_length };
+    void* temp_buffer { vp.stack_allocate(allocation_size, alignof(uint8_t)) };
+
+    hdsa::FreeListAlloc fl {};
+    fl.assign_buffer(temp_buffer, allocation_size, hdsa::PlacementPolicy::find_first);
     std::cout << "Is temp_buffer aligned? " << ((hdsa::is_aligned(static_cast<void*>(temp_buffer), alignof(uint64_t))) ? "Yes!" :  "No!") << '\n';
     std::cout << "temp_buffer: " << reinterpret_cast<uintptr_t>(temp_buffer) << '\n';
     std::cout << "temp_buffer + sizeof(StackHeader): " << (reinterpret_cast<uintptr_t>(temp_buffer) + static_cast<uintptr_t>(sizeof(hdsa::StackHeader))) << '\n';
 
-    temp* x { static_cast<temp*>(pool.pool_allocate()) };
+    temp* x { static_cast<temp*>(fl.free_list_allocate(sizeof(temp), alignof(temp))) };
     new(x) temp();
     std::cout << "x: " << static_cast<void*>(x) << '\n';
     std::cout << "Is x aligned? " << ((hdsa::is_aligned(static_cast<void*>(x), alignof(temp))) ? "Yes!" :  "No!") << '\n';
     std::cout << "x->a: " << x->a << '\n';
     std::cout << "x->b: " << x->b << "\n\n\n";
 
-    uint8_t* uc { static_cast<uint8_t*>(pool.pool_allocate()) };
+    uint8_t* uc { static_cast<uint8_t*>(fl.free_list_allocate(sizeof(uint8_t) * 5, alignof(uint8_t))) };
     std::cout << "Is uc aligned? " << ((hdsa::is_aligned(static_cast<void*>(uc), 8)) ? "Yes!" :  "No!") << '\n';
     uc[0] = 'x';
     uc[1] = 'y';
@@ -519,13 +594,13 @@ int main()
     std::cout << "uc[3]: " << uc[3] << '\n';
     std::cout << "uc[4]: " << uc[4] << "\n\n\n";
 
-    uint32_t* star { static_cast<uint32_t*>(pool.pool_allocate()) };
+    uint32_t* star { static_cast<uint32_t*>(fl.free_list_allocate(sizeof(uint32_t), alignof(uint32_t))) };
     std::cout << "star: " << static_cast<void*>(star) << '\n';
     std::cout << "Is star aligned? " << ((hdsa::is_aligned(static_cast<void*>(star), alignof(uint32_t))) ? "Yes!" :  "No!") << '\n';
     *star = 10;
     std::cout << "*star: " << *star << "\n\n\n";
 
-    uint8_t* uc2 { static_cast<uint8_t*>(pool.pool_allocate()) };
+    uint8_t* uc2 { static_cast<uint8_t*>(fl.free_list_allocate(sizeof(uint8_t) * 5, alignof(uint8_t))) };
     std::cout << "Is uc2 aligned? " << ((hdsa::is_aligned(static_cast<void*>(uc2), 8)) ? "Yes!" :  "No!") << '\n';
     uc2[0] = 'a';
     uc2[1] = 'b';
@@ -539,7 +614,7 @@ int main()
     std::cout << "uc2[3]: " << uc2[3] << '\n';
     std::cout << "uc2[4]: " << uc2[4] << "\n\n\n";
 
-    uint16_t* us { static_cast<uint16_t*>(pool.pool_allocate()) };
+    uint16_t* us { static_cast<uint16_t*>(fl.free_list_allocate(sizeof(uint16_t) * 3, alignof(uint16_t))) };
     std::cout << "Is us aligned? " << ((hdsa::is_aligned(static_cast<void*>(us), alignof(uint16_t))) ? "Yes!" :  "No!") << '\n';
     us[0] = 12;
     us[1] = 14;
@@ -549,11 +624,11 @@ int main()
     std::cout << "us[1]: " << us[1] << '\n';
     std::cout << "us[2]: " << us[2] << "\n\n\n";
 
-    pool.pool_deallocate(static_cast<void*>(x));
-    pool.pool_deallocate(uc);
-    pool.pool_deallocate(star);
-    pool.pool_deallocate(uc2);
-    pool.pool_deallocate(us);
+    fl.free_list_deallocate(x);
+    fl.free_list_deallocate(uc);
+    fl.free_list_deallocate(star);
+    fl.free_list_deallocate(uc2);
+    fl.free_list_deallocate(us);
 
     // pool.stack_pop();
     // pool.stack_pop();
