@@ -1004,6 +1004,7 @@ struct FreeListAlloc : public std::pmr::memory_resource
     uint8_t* buffer {};
     size_t size {};
     size_t used_bytes {};
+    size_t allocation_amount {};
     FreeListNode* head {};
     PlacementPolicy policy { PlacementPolicy::find_best };
 
@@ -1025,6 +1026,7 @@ struct FreeListAlloc : public std::pmr::memory_resource
         std::cout << ".............................. FREE LIST RESET ..................................\n";
 
         used_bytes = 0;
+        allocation_amount = 0;
         FreeListNode* first_node { reinterpret_cast<FreeListNode*>(buffer) };
         first_node->block_size = size;
         first_node->next = nullptr;
@@ -1066,7 +1068,7 @@ struct FreeListAlloc : public std::pmr::memory_resource
 
         while (node != nullptr)
         {
-            padding = calc_padding_with_header(reinterpret_cast<uintptr_t>(node), static_cast<uintptr_t>(alignment), sizeof(FreeListHeader));
+            padding = calc_padding_with_header(reinterpret_cast<uintptr_t>(node), sizeof(FreeListHeader), static_cast<uintptr_t>(alignment));
             size_t required_space { allocation_size + padding };
             std::cout << "padding: " << padding << '\n';
             std::cout << "allocation_size + padding: " << required_space << '\n';
@@ -1127,7 +1129,7 @@ struct FreeListAlloc : public std::pmr::memory_resource
 
         while (true)
         {
-            padding = calc_padding_with_header(reinterpret_cast<uintptr_t>(node), static_cast<uintptr_t>(alignment), sizeof(FreeListHeader));
+            padding = calc_padding_with_header(reinterpret_cast<uintptr_t>(node), sizeof(FreeListHeader), static_cast<uintptr_t>(alignment));
             size_t required_space { allocation_size + padding };
             std::cout << "padding: " << padding << '\n';
             std::cout << "allocation_size + padding: " << required_space << '\n';
@@ -1281,10 +1283,13 @@ struct FreeListAlloc : public std::pmr::memory_resource
         std::cout << "************************** FREE LIST ALLOCATION ****************************\n";
         std::cout << "allocation_size before: " << allocation_size << '\n';
         std::cout << "alignment before: " << alignment << '\n';
+        std::cout << "allocation_amount before: " << allocation_amount << '\n';
 
         if (allocation_size < sizeof(FreeListNode))
+        // if (allocation_size < alignof(FreeListNode))
         {
-            allocation_size = sizeof(FreeListNode);
+            // allocation_size = sizeof(FreeListNode);
+            // allocation_size = alignof(FreeListNode);
             std::cout << "allocation_size after: " << allocation_size << '\n';
         }
 
@@ -1337,12 +1342,14 @@ struct FreeListAlloc : public std::pmr::memory_resource
 
         FreeListNode* result = reinterpret_cast<FreeListNode*>(reinterpret_cast<uintptr_t>(header_ptr) + static_cast<uintptr_t>(sizeof(FreeListHeader)));
         used_bytes += required_space;
+        allocation_amount += 1;
 
         std::cout << "alignment_padding: " << alignment_padding << '\n';
         std::cout << "header_ptr: " << static_cast<void*>(header_ptr) << '\n';
         std::cout << "header_ptr->block_size: " << header_ptr->block_size << '\n';
         std::cout << "header_ptr->padding: " << header_ptr->padding << '\n';
         std::cout << "used_bytes: " << used_bytes << '\n';
+        std::cout << "allocation_amount after: " << allocation_amount << '\n';
         std::cout << "head: " << static_cast<void*>(head) << '\n';
         std::cout << "previous_node: " << static_cast<void*>(previous_node) << '\n';
         std::cout << "Result: " << static_cast<void*>(result) << '\n';
@@ -1420,6 +1427,8 @@ struct FreeListAlloc : public std::pmr::memory_resource
         FreeListNode* free_node {};
         FreeListNode* node {};
 
+        std::cout << "allocation_amount before: " << allocation_amount << '\n';
+
         if (ptr == nullptr)
         {
             std::cout << "The pointer to deallocate from the FreeListAlloc is null.\n";
@@ -1442,8 +1451,10 @@ struct FreeListAlloc : public std::pmr::memory_resource
         std::cout << "used_bytes before deallocation: " << used_bytes << '\n';
 
         used_bytes -= free_node->block_size;
+        allocation_amount -= 1;
         free_list_coalescence(head, free_node);
 
+        std::cout << "allocation_amount after: " << allocation_amount << '\n';
         std::cout << "used_bytes after deallocation: " << used_bytes << '\n';
     }
 

@@ -580,6 +580,8 @@ int main()
     std::cout << "x->a: " << x->a << '\n';
     std::cout << "x->b: " << x->b << "\n\n\n";
 
+    fl.free_list_deallocate(x);
+
     uint8_t* uc { static_cast<uint8_t*>(fl.free_list_allocate(sizeof(uint8_t) * 5, alignof(uint8_t))) };
     std::cout << "Is uc aligned? " << ((hdsa::is_aligned(static_cast<void*>(uc), 8)) ? "Yes!" :  "No!") << '\n';
     uc[0] = 'x';
@@ -599,6 +601,9 @@ int main()
     std::cout << "Is star aligned? " << ((hdsa::is_aligned(static_cast<void*>(star), alignof(uint32_t))) ? "Yes!" :  "No!") << '\n';
     *star = 10;
     std::cout << "*star: " << *star << "\n\n\n";
+
+    fl.free_list_deallocate(uc);
+    fl.free_list_deallocate(star);
 
     uint8_t* uc2 { static_cast<uint8_t*>(fl.free_list_allocate(sizeof(uint8_t) * 5, alignof(uint8_t))) };
     std::cout << "Is uc2 aligned? " << ((hdsa::is_aligned(static_cast<void*>(uc2), 8)) ? "Yes!" :  "No!") << '\n';
@@ -624,9 +629,9 @@ int main()
     std::cout << "us[1]: " << us[1] << '\n';
     std::cout << "us[2]: " << us[2] << "\n\n\n";
 
-    fl.free_list_deallocate(x);
-    fl.free_list_deallocate(uc);
-    fl.free_list_deallocate(star);
+    // fl.free_list_deallocate(x);
+    // fl.free_list_deallocate(uc);
+    // fl.free_list_deallocate(star);
     fl.free_list_deallocate(uc2);
     fl.free_list_deallocate(us);
 
