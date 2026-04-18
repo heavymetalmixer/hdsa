@@ -56,9 +56,11 @@ bool is_power_of_two(size_t x)
     return ((x & (x - 1)) == 0);
 }
 
-// If x isn't some power of 2, then increase it until it becomes a power of 2
-// It returns 1 when the requested_size is 0, as this function is used for finding
-// alignments, and there's no alignment 0
+/**
+ * If x isn't some power of 2, then increase it until it becomes a power of 2
+ * It returns 1 when the requested_size is 0, as this function is used for finding
+ * alignments, and there's no alignment 0.
+ */
 size_t round_pow_two(size_t requested_size)
 {
     if ((requested_size == 0) || (requested_size == 1)) { return 1; }
@@ -73,8 +75,10 @@ size_t round_pow_two(size_t requested_size)
     return power;
 }
 
-// Returns true if "ptr" is aligned to "alignment"
-bool is_aligned(const void* ptr, const size_t alignment)
+/**
+ * Returns true if "ptr" is aligned to "alignment"
+ */
+bool is_aligned(const void* const ptr, const size_t alignment)
 {
     return (reinterpret_cast<uintptr_t>(ptr) % alignment) == 0;
 }
@@ -125,7 +129,7 @@ uintptr_t align_forward_uintptr(uintptr_t ptr, size_t alignment) noexcept
 /**
  * Same as align_forward_uintptr but for size_t
  */
-uintptr_t align_forward_size(size_t ptr, size_t alignment = 2 * sizeof(void *)) noexcept
+uintptr_t align_forward_size(size_t ptr, size_t alignment) noexcept
 {
     size_t p {};
     size_t a {};
@@ -198,9 +202,8 @@ size_t calc_padding_with_header(uintptr_t ptr, size_t header_size, uintptr_t ali
     return static_cast<size_t>(padding);
 }
 
-// A block is 16 pages of 4K each
-constexpr size_t page_size { 4096 };
-constexpr size_t block_size { page_size * 16 }; // 65536
+
+constexpr size_t pages_block_size { 4096 * 16 }; // 65536
 
 /* 1) It works as the base for all the other allocators, it only provides ONE BLOCK of un-aligned memory.
  * Fortunately, other allocators out there can align the addresses themselves, and the ones in this
@@ -235,7 +238,7 @@ struct VirtualPageAlloc : public std::pmr::memory_resource
     {
         HDSA_BASIC_ASSERT((buffer != nullptr), "The buffer is empty!\n");
         HDSA_BASIC_ASSERT((block_amount > 0), "The VirtualPageAlloc resource has 0 pages assigned to it!\n");
-        std::cout << "A VirtualPageAlloc resource was created, with " << block_amount << " blocks of " << block_size << " bytes each.\n";
+        std::cout << "A VirtualPageAlloc resource was created, with " << block_amount << " blocks of " << pages_block_size << " bytes each.\n";
     };
 
     VirtualPageAlloc(const VirtualPageAlloc& other) = default;
@@ -251,8 +254,8 @@ struct VirtualPageAlloc : public std::pmr::memory_resource
      */
     void* page_allocate(size_t size) noexcept
     {
-        size_t real_size { round_to_block(size, block_size) };
-        size_t blocks { real_size / block_size };
+        size_t real_size { round_to_block(size, pages_block_size) };
+        size_t blocks { real_size / pages_block_size };
         std::cout << "VirtualPageAlloc real size: " << real_size << '\n';
         std::cout << "VirtualPageAlloc amount of blocks to allocate: " << blocks << '\n';
 
@@ -278,7 +281,7 @@ struct VirtualPageAlloc : public std::pmr::memory_resource
      */
     void page_deallocate() noexcept
     {
-        std::cout << "A VirtualPageAlloc's memory is about to be released back to the OS. It has " << block_amount << " blocks of " << block_size << " bytes assigned to it.\n";
+        std::cout << "A VirtualPageAlloc's memory is about to be released back to the OS. It has " << block_amount << " blocks of " << pages_block_size << " bytes assigned to it.\n";
 
         // OS selection for the virtual memory allocation function
         // In both cases all the memory is released at the same time
@@ -1268,6 +1271,65 @@ struct FreeListAlloc : public std::pmr::memory_resource
     }
 
     /**
+     * Tries to combine free_node and_free_node->next into a single free block
+     * and tries to do the same with previous_node and free_node afterwards
+     */
+    void free_list_coalescence(FreeListNode* previous_node, FreeListNode* free_node)
+    {
+        std::cout << "------------------------------ FREE LIST COALESCENCE ----------------------------------\n";
+
+        if ((free_node != nullptr) &&(previous_node != nullptr ))
+        {
+            if
+            (
+                (free_node->next != nullptr) &&
+                (reinterpret_cast<FreeListNode*>(reinterpret_cast<uintptr_t>(free_node) + static_cast<uintptr_t>(free_node->block_size)) == free_node->next)
+            )
+            {
+                free_node->block_size += free_node->next->block_size;
+                free_list_node_remove(free_node, free_node->next);
+                std::cout << "Combining free_node and free_node->next.\n";
+            }
+
+            if
+            (
+                (previous_node->next != nullptr) &&
+                (reinterpret_cast<FreeListNode*>(reinterpret_cast<uintptr_t>(previous_node) + static_cast<uintptr_t>(previous_node->block_size)) == free_node)
+            )
+            {
+                previous_node->block_size += free_node->block_size;
+                free_list_node_remove(previous_node, free_node);
+                std::cout << "Combining previous_node and free_node.\n";
+            }
+
+            // If head and previous_node are the only nodes in the free list, and both are next to each other, combine them into one
+            if
+            ((head->next == previous_node) && (previous_node->next == nullptr))
+            {
+                if (reinterpret_cast<FreeListNode*>(reinterpret_cast<uintptr_t>(previous_node) + static_cast<uintptr_t>(previous_node->block_size)) == head)
+                {
+                    previous_node->block_size += head->block_size;
+                    free_list_node_remove(previous_node, head);
+                    std::cout << "Combining head into previous_node.\n";
+                }
+                else if (reinterpret_cast<FreeListNode*>(reinterpret_cast<uintptr_t>(head) + static_cast<uintptr_t>(head->block_size)) == previous_node)
+                {
+                    head->block_size += previous_node->block_size;
+                    free_list_node_remove(head, previous_node);
+                    std::cout << "Combining previous_node into head.\n";
+                }
+            }
+
+            std::cout << "free_node->next isn't null. free_node->block_size: " << free_node->block_size << '\n';
+            std::cout << "previous_node->next isn't null. previous_node->block_size: " << previous_node->block_size << '\n';
+        }
+        else
+        {
+            std::cout << "One or both nodes are null, coalescence isn't possible.\n";
+        }
+    }
+
+    /**
      * Allocates within a node according to the PlacementPolicy in use
      */
     void* free_list_allocate(size_t allocation_size, size_t alignment)
@@ -1358,68 +1420,9 @@ struct FreeListAlloc : public std::pmr::memory_resource
     }
 
     /**
-     * Tries to combine free_node and_free_node->next into a single free block
-     * and tries to do the same with previous_node and free_node afterwards
-     */
-    void free_list_coalescence(FreeListNode* previous_node, FreeListNode* free_node)
-    {
-        std::cout << "------------------------------ FREE LIST COALESCENCE ----------------------------------\n";
-
-        if ((free_node != nullptr) &&(previous_node != nullptr ))
-        {
-            if
-            (
-                (free_node->next != nullptr) &&
-                (reinterpret_cast<FreeListNode*>(reinterpret_cast<uintptr_t>(free_node) + static_cast<uintptr_t>(free_node->block_size)) == free_node->next)
-            )
-            {
-                free_node->block_size += free_node->next->block_size;
-                free_list_node_remove(free_node, free_node->next);
-                std::cout << "Combining free_node and free_node->next.\n";
-            }
-
-            if
-            (
-                (previous_node->next != nullptr) &&
-                (reinterpret_cast<FreeListNode*>(reinterpret_cast<uintptr_t>(previous_node) + static_cast<uintptr_t>(previous_node->block_size)) == free_node)
-            )
-            {
-                previous_node->block_size += free_node->block_size;
-                free_list_node_remove(previous_node, free_node);
-                std::cout << "Combining previous_node and free_node.\n";
-            }
-
-            // If head and previous_node are the only nodes in the free list, and both are next to each other, combine them into one
-            if
-            ((head->next == previous_node) && (previous_node->next == nullptr))
-            {
-                if (reinterpret_cast<FreeListNode*>(reinterpret_cast<uintptr_t>(previous_node) + static_cast<uintptr_t>(previous_node->block_size)) == head)
-                {
-                    previous_node->block_size += head->block_size;
-                    free_list_node_remove(previous_node, head);
-                    std::cout << "Combining head into previous_node.\n";
-                }
-                else if (reinterpret_cast<FreeListNode*>(reinterpret_cast<uintptr_t>(head) + static_cast<uintptr_t>(head->block_size)) == previous_node)
-                {
-                    head->block_size += previous_node->block_size;
-                    free_list_node_remove(head, previous_node);
-                    std::cout << "Combining previous_node into head.\n";
-                }
-            }
-
-            std::cout << "free_node->next isn't null. free_node->block_size: " << free_node->block_size << '\n';
-            std::cout << "previous_node->next isn't null. previous_node->block_size: " << previous_node->block_size << '\n';
-        }
-        else
-        {
-            std::cout << "One or both nodes are null, coalescence isn't possible.\n";
-        }
-    }
-
-    /**
      * Adds the block to the free list of nodes, reduces the amount of space in use and merges two contiguous blocks if possible
      */
-    void free_list_deallocate(void* ptr)
+    void free_list_deallocate(const void* const ptr)
     {
         std::cout << "------------------------------ FREE LIST DEALLOCATION ----------------------------------\n";
 
@@ -1474,6 +1477,12 @@ struct FreeListAlloc : public std::pmr::memory_resource
         return this == dynamic_cast<const FreeListAlloc*>(&other);
     }
 };
+
+/**
+ * TODO:
+ * 1) Investigate about Double-ended Stack and Multi-Pool Allocators.
+ * 2) Implement them if they're interesting enough.
+ */
 
 } // namespace hdsa end
 
