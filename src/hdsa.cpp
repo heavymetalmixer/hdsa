@@ -1,6 +1,7 @@
 #include "dyn_array.hpp"
 #include "pmr.hpp"
 #include <type_traits>
+#include <cstdio>
 
 struct Vec3
 {
@@ -494,10 +495,24 @@ void derived_constructor(Derived* const self, int32_t widtha, int32_t heighta)
 
 
 
-
-
 int main()
 {
+    #define PI_C 3.14159f
+
+    int radius = 0;
+
+    char* single = "Hola";
+    printf("single: %p\n", single);
+
+    printf("Enter the radius for the sphere: ");
+    scanf("%d", &radius);
+
+    float volume = (4.0f / 3.0f) * PI_C * (float)(radius * radius * radius);
+    // printf("The volume of the 10 radius sphere is: %.3f\n", volume);
+    printf("The volume of the 10 radius sphere is: %b\n", volume);
+
+    #undef PI_C
+
     // void* buffer1 { ::operator new(((sizeof(uint8_t) * sizeof(Vec3)) + alignof(int)) * 4, static_cast<std::align_val_t>(alignof(uint8_t)), std::nothrow) };
     // hdsa::ArenaAlloc memory1 { buffer1, (sizeof(uint8_t) * sizeof(Vec3)) + alignof(int) };
     // hdsa::ArenaAlloc memory2 {};
@@ -509,26 +524,26 @@ int main()
     // std::cout << "v1 is: " << *v1 << '\n';
     // std::cout << "mem is: " << v1->mem << '\n';
 
-    Derived d;
-    derived_constructor(&d, 11, 12);
+    // Derived d;
+    // derived_constructor(&d, 11, 12);
 
-    std::cout << derived_area(&d) << '\n';
-    derived_print_area(&d);
+    // std::cout << derived_area(&d) << '\n';
+    // derived_print_area(&d);
 
-    std::cout << "d->base.vptr: " << d.base.vptr << '\n';
+    // std::cout << "d->base.vptr: " << d.base.vptr << '\n';
 
-    std::cout << base_rand(reinterpret_cast<Base*>(&d)) << '\n';
+    // std::cout << base_rand(reinterpret_cast<Base*>(&d)) << '\n';
 
-    Derived d2;
-    derived_constructor(&d2, 6, 4);
+    // Derived d2;
+    // derived_constructor(&d2, 6, 4);
 
-    std::cout << derived_area(&d2) << '\n';
-    derived_print_area(&d2);
-    std::cout << base_rand(reinterpret_cast<Base*>(&d2)) << '\n';
+    // std::cout << derived_area(&d2) << '\n';
+    // derived_print_area(&d2);
+    // std::cout << base_rand(reinterpret_cast<Base*>(&d2)) << '\n';
 
-    std::cout << "d2->base.vptr: " << d2.base.vptr << "\n\n\n";
+    // std::cout << "d2->base.vptr: " << d2.base.vptr << "\n\n\n";
 
-
+#if 0
 
 
     SYSTEM_INFO sys_info;
@@ -646,6 +661,8 @@ int main()
     pa.page_deallocate();
 
     std::cin.get();
+
+#endif
 
     // *a = 5;
     // *b = 3;

@@ -49,6 +49,24 @@ bool is_pod()
     std::is_trivially_destructible_v<T>;
 }
 
+/**
+ * A function to return the single-dimensional array index from arr[x][y]
+ * "arr_x_size" is the amount of rows in the array
+ */
+size_t dual_to_single_index(size_t x, size_t y, size_t arr_x_size)
+{
+    return (x * arr_x_size) + y;
+}
+
+/**
+ * A function to return the single-dimensional array index from arr[y][x]
+ * "arr_x_size" is the amount of rows in the array
+ */
+size_t dual_to_single_index_inverse(size_t x, size_t y, size_t arr_x_size)
+{
+    return x + (y * arr_x_size);
+}
+
 bool is_power_of_two(size_t x)
 {
     if (x == 0) { return false; }
@@ -114,7 +132,7 @@ uintptr_t align_forward_uintptr(uintptr_t ptr, size_t alignment) noexcept
         alignment = round_pow_two(alignment);
     }
 
-    p= ptr;
+    p = ptr;
     a = static_cast<uintptr_t>(alignment);
     modulo = p & (a - 1); // Same as (size % alignment) but faster as 'alignment' is a power of two
 
@@ -141,7 +159,7 @@ uintptr_t align_forward_size(size_t ptr, size_t alignment) noexcept
         alignment = round_pow_two(alignment);
     }
 
-    p= ptr;
+    p = ptr;
     a = alignment;
     modulo = p & (a - 1); // Same as (size % alignment) but faster as 'alignment' is a power of two
 
@@ -156,7 +174,7 @@ uintptr_t align_forward_size(size_t ptr, size_t alignment) noexcept
 /**
  * It returns the padding plus the size of the header of the current allocation
  */
-size_t calc_padding_with_header(uintptr_t ptr, size_t header_size, uintptr_t alignment)
+size_t calc_padding_with_header(uintptr_t ptr, size_t header_size, uintptr_t allocation_alignment)
 {
     uintptr_t p {};
     uintptr_t a {};
@@ -165,13 +183,13 @@ size_t calc_padding_with_header(uintptr_t ptr, size_t header_size, uintptr_t ali
     uintptr_t needed_space {};
 
     // If alignment isn't a power of 2, increase it up to the next power of 2
-    if (!is_power_of_two(alignment))
+    if (!is_power_of_two(allocation_alignment))
     {
-        alignment = round_pow_two(alignment);
+        allocation_alignment = round_pow_two(allocation_alignment);
     }
 
     p = ptr;
-    a = alignment;
+    a = allocation_alignment;
     modulo = p & (a-1); // (p % a) as it assumes alignment is a power of two
 
     padding = 0;
