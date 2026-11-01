@@ -10,7 +10,7 @@
 
 
 #include <cstddef>
-#include <cstdint>
+// #include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <type_traits>
@@ -243,15 +243,15 @@ constexpr size_t pages_block_size { 4096 * 16 }; // 65536
  */
 struct VirtualPageAlloc : public std::pmr::memory_resource
 {
-    uint8_t* buffer {};
-    uint8_t* end_address {};
+    unsigned char* buffer {};
+    unsigned char* end_address {};
     size_t block_amount {};
     size_t buffer_length {};
 
     VirtualPageAlloc() = default;
 
     explicit VirtualPageAlloc(void* buff, size_t blocks) noexcept
-    : buffer { static_cast<uint8_t*>(buff) },
+    : buffer { (unsigned char*)(buff) },
       block_amount { blocks }
     {
         HDSA_BASIC_ASSERT((buffer != nullptr), "The buffer is empty!\n");
@@ -279,18 +279,18 @@ struct VirtualPageAlloc : public std::pmr::memory_resource
 
         // OS selection for the virtual memory allocation function
     #if defined(_WIN32) || defined(_WIN64)
-        buffer = static_cast<uint8_t*>(VirtualAlloc(static_cast<void*>(buffer + buffer_length), real_size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
+        buffer = (unsigned char*)(VirtualAlloc((void*)((uintptr_t)buffer + (uintptr_t)buffer_length), real_size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
     #elif defined(__linux__) || defined(__APPLE__) || defined(__MACH__) || defined(__unix__) || defined(__unix)
-        buffer = static_cast<uint8_t*>(mmap(static_cast<void*>(buffer + buffer_length()), block_size * blocks, PROT_READ+PROT_WRITE, MAP_ANONYMOUS+MAP_SHARED, -1, 0));
+        buffer = (unsigned char*)(mmap((void*)((uintptr_t)buffer + (uintptr_t)buffer_length), real_size, PROT_READ+PROT_WRITE, MAP_ANONYMOUS+MAP_SHARED, -1, 0));
     #endif
 
         block_amount = blocks;
         buffer_length = real_size;
-        end_address = reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(buffer) + static_cast<uintptr_t>(buffer_length));
+        end_address = (unsigned char*)((uintptr_t)buffer + (uintptr_t)buffer_length);
 
         std::cout << "VirtualPageAlloc buffer size: " << buffer_length << '\n';
 
-        return static_cast<void*>(buffer);
+        return (void*)buffer;
     }
 
     /**
@@ -304,9 +304,9 @@ struct VirtualPageAlloc : public std::pmr::memory_resource
         // OS selection for the virtual memory allocation function
         // In both cases all the memory is released at the same time
     #if defined(_WIN32) || defined(_WIN64)
-        VirtualFree(buffer, 0, MEM_RELEASE);
+        VirtualFree((void*)buffer, 0, MEM_RELEASE);
     #elif defined(__linux__) || defined(__APPLE__) || defined(__MACH__) || defined(__unix__) || defined(__unix)
-        munmap(static_cast<void*>(buffer), buffer_length());
+        munmap((void*)buffer, buffer_length);
     #endif
 
         buffer = nullptr;
@@ -337,7 +337,7 @@ struct VirtualPageAlloc : public std::pmr::memory_resource
  */
 struct ArenaAlloc : public std::pmr::memory_resource
 {
-    uint8_t* buffer {};
+    unsigned char* buffer {};
     size_t buffer_length {};
     size_t current_offset {};
     size_t previous_offset {};
@@ -350,7 +350,7 @@ struct ArenaAlloc : public std::pmr::memory_resource
     ArenaAlloc& operator=(ArenaAlloc&& other) noexcept = default;
 
     explicit ArenaAlloc(void* buff, size_t buffer_size) noexcept
-    : buffer { static_cast<uint8_t*>(buff) },
+    : buffer { static_cast<unsigned char*>(buff) },
       buffer_length { buffer_size }
     {
         HDSA_BASIC_ASSERT((buffer != nullptr), "The buffer is empty!\n");
@@ -364,7 +364,7 @@ struct ArenaAlloc : public std::pmr::memory_resource
      */
     void assign_buffer(void* buff, size_t buffer_size) noexcept
     {
-        buffer = static_cast<uint8_t*>(buff);
+        buffer = static_cast<unsigned char*>(buff);
         buffer_length = buffer_size;
         previous_offset = 0;
         current_offset = 0;
@@ -584,7 +584,7 @@ struct StackHeader
  */
 struct StackAlloc : public std::pmr::memory_resource
 {
-    uint8_t* buffer {};
+    unsigned char* buffer {};
     size_t buffer_length {};
     size_t start_offset {};
     size_t current_offset {};
@@ -597,7 +597,7 @@ struct StackAlloc : public std::pmr::memory_resource
     StackAlloc& operator=(StackAlloc&& other) noexcept = default;
 
     explicit StackAlloc(void* buff, size_t buff_len) noexcept
-    : buffer(static_cast<uint8_t*>(buff)),
+    : buffer(static_cast<unsigned char*>(buff)),
       buffer_length(buff_len)
     {}
 
@@ -605,7 +605,7 @@ struct StackAlloc : public std::pmr::memory_resource
     // or all its memory was freed
     void assign_buffer(void* backing_buffer, size_t backing_buffer_length) noexcept
     {
-        buffer = static_cast<uint8_t*>(backing_buffer);
+        buffer = static_cast<unsigned char*>(backing_buffer);
         buffer_length = backing_buffer_length;
         current_offset = 0;
         allocation_amount = 0;
@@ -640,8 +640,6 @@ struct StackAlloc : public std::pmr::memory_resource
             std::cout << "remaining space before allocation: " << (buffer_length - current_offset) << '\n';
             std::cout << "allocation_amount before: " << allocation_amount << '\n';
 
-            // As the padding is 8 bits (1 byte), the largest alignment that can
-            // be used is 128 bytes. This kind of alignment may be needed for any kind of SIMD instruction
             if (alignment > 128)
             {
                 alignment = 128;
@@ -836,7 +834,7 @@ struct PoolFreeNode
 
 struct PoolAlloc : public std::pmr::memory_resource
 {
-    uint8_t* buffer {};
+    unsigned char* buffer {};
     size_t buffer_length {};
     size_t chunk_size {};
     PoolFreeNode* head {};
@@ -885,7 +883,7 @@ struct PoolAlloc : public std::pmr::memory_resource
         HDSA_BASIC_ASSERT((backing_buffer_length >= chunk_s), "The size of the backing buffer is smaller than the provided chunk size.\n");
 
         // Store the adjusted parameters
-        buffer = static_cast<uint8_t*>(backing_buffer);
+        buffer = static_cast<unsigned char*>(backing_buffer);
         buffer_length = backing_buffer_length;
         chunk_size = chunk_s;
         head = nullptr;
@@ -1022,7 +1020,7 @@ enum struct PlacementPolicy : size_t
 
 struct FreeListAlloc : public std::pmr::memory_resource
 {
-    uint8_t* buffer {};
+    unsigned char* buffer {};
     size_t size {};
     size_t used_bytes {};
     size_t allocation_amount {};
@@ -1036,7 +1034,7 @@ struct FreeListAlloc : public std::pmr::memory_resource
     FreeListAlloc& operator=(FreeListAlloc&& other) noexcept = default;
 
     explicit FreeListAlloc(void* data, size_t new_size, PlacementPolicy p) noexcept
-    : buffer { static_cast<uint8_t*>(data) },
+    : buffer { static_cast<unsigned char*>(data) },
       size { new_size }
     {
         free_list_reset(p);
@@ -1066,7 +1064,7 @@ struct FreeListAlloc : public std::pmr::memory_resource
      */
     void assign_buffer(void* data, size_t new_size, PlacementPolicy p)
     {
-        buffer = static_cast<uint8_t*>(data);
+        buffer = static_cast<unsigned char*>(data);
         size = new_size;
         free_list_reset(p);
     }

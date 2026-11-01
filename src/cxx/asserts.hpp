@@ -3,6 +3,7 @@
 
 #include <source_location>
 
+#ifndef HDSA_DISABLE_ASSERTS
 // I don't like that C asserts don't work on Release builds so I made this one for the same purpose
 // If you compare 2 or more values/variables for the "condition", make sure to wrap them in parenthesis
 #define HDSA_BASIC_ASSERT(condition, message)               \
@@ -18,5 +19,11 @@ if (!condition)                                             \
         << "  Column: " << loc.column() << '\n';            \
     std::abort();                                           \
 }                                                           \
+
+#endif
+
+#ifdef HDSA_DISABLE_ASSERTS
+#define HDSA_BASIC_ASSERT(condition, message) /**/
+#endif // HDSA_DISABLE_ASSERTS
 
 #endif // HDSA_ASSERTS_HPP
