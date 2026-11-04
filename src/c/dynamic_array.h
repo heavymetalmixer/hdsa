@@ -84,22 +84,6 @@ ptrdiff_t hdsa_dynamic_array_last_index(const hdsa_Dynamic_Array* const self);
 void hdsa_dynamic_array_reset_array(hdsa_Dynamic_Array* const self);
 
 /**
- * @brief It fills with zeroes the data only at the index "position" which is
- * one T sized object, not as raw bytes.
- *
- * Bear in mind: self->buffer_size isn't modified with this function as the
- * data after position won't be moved.
- *
- * It doesn't use memset to avoid the compiler optimizing it away.
- *
- * If the array is empty (self->buffer_size being 0) the function does nothing.
- * @param[in] self The dynamic array pointer, must not be null.
- * @param[in] position Index of size T of the object to be deleted. It must
- * be from 0 to hdsa_dynamic_array_last_index.
- */
-void hdsa_dynamic_array_zero_fill_single(hdsa_Dynamic_Array* const self, ptrdiff_t position);
-
-/**
  * @brief It fills with zeroes the data from the index "position" (T sized)
  * n indexes above, with n being "object_amount".
  *
@@ -113,7 +97,7 @@ void hdsa_dynamic_array_zero_fill_single(hdsa_Dynamic_Array* const self, ptrdiff
  * array. It must be at least 1, and if it goes above the size of the array
  * the whole self->buffer is filled with 0s.
  */
-void hdsa_dynamic_array_zero_fill_multiple(hdsa_Dynamic_Array* const self, ptrdiff_t position, ptrdiff_t object_amount);
+void hdsa_dynamic_array_zero_fill(hdsa_Dynamic_Array* const self, ptrdiff_t position, ptrdiff_t object_amount);
 
 /**
  * @brief This one fills the entire buffer until self->buffer_size with zeroes,
@@ -127,7 +111,7 @@ void hdsa_dynamic_array_zero_fill_multiple(hdsa_Dynamic_Array* const self, ptrdi
  *
  * If the array is empty (self->buffer_size being 0) the function does nothing.
  */
-void hdsa_dynamic_array_zero_fill_array(hdsa_Dynamic_Array* const self);
+void hdsa_dynamic_array_zero_fill_all(hdsa_Dynamic_Array* const self);
 
 /**
  * @brief Allocates more memory for the Dynamic Array as long as the allocator

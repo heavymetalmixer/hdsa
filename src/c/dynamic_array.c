@@ -155,39 +155,6 @@ void hdsa_dynamic_array_reset_array(hdsa_Dynamic_Array* const self)
 }
 
 /**
- * @brief It fills with zeroes the data only at the index "position" which is
- * one T sized object, not as raw bytes.
- *
- * Bear in mind: self->buffer_size isn't modified with this function as the
- * data after position won't be moved.
- *
- * It doesn't use memset to avoid the compiler optimizing it away.
- *
- * If the array is empty (self->buffer_size being 0) the function does nothing.
- * @param[in] self The dynamic array pointer, must not be null.
- * @param[in] position Index of size T of the object to be deleted. It must
- * be from 0 to hdsa_dynamic_array_last_index.
- */
-void hdsa_dynamic_array_zero_fill_single(hdsa_Dynamic_Array* const self, ptrdiff_t position)
-{
-    HDSA_BASIC_ASSERT((self), "The dynamic array pointer is null.\n");
-    HDSA_BASIC_ASSERT((self->buffer), "The dynamic array buffer is null.\n");
-    HDSA_BASIC_ASSERT(((position > -1) && (position < hdsa_dynamic_array_size(self))), "The position is out of bounds.\n");
-
-    if (self->buffer_size == 0)
-    {
-        return;
-    }
-
-    ptrdiff_t real_pos = position * self->type_size;
-
-    for (ptrdiff_t i = real_pos; i < (real_pos + self->type_size); ++i)
-    {
-        self->buffer[i] = 0;
-    }
-}
-
-/**
  * @brief It fills with zeroes the data from the index "position" (T sized)
  * n indexes above, with n being "object_amount".
  *
@@ -201,7 +168,7 @@ void hdsa_dynamic_array_zero_fill_single(hdsa_Dynamic_Array* const self, ptrdiff
  * array. It must be at least 1, and if it goes above the size of the array
  * the whole self->buffer is filled with 0s.
  */
-void hdsa_dynamic_array_zero_fill_multiple(hdsa_Dynamic_Array* const self, ptrdiff_t position, ptrdiff_t object_amount)
+void hdsa_dynamic_array_zero_fill(hdsa_Dynamic_Array* const self, ptrdiff_t position, ptrdiff_t object_amount)
 {
     HDSA_BASIC_ASSERT((self), "The dynamic array pointer is null.\n");
     HDSA_BASIC_ASSERT((self->buffer), "The dynamic array buffer is null.\n");
@@ -222,7 +189,7 @@ void hdsa_dynamic_array_zero_fill_multiple(hdsa_Dynamic_Array* const self, ptrdi
     }
 
     ptrdiff_t real_beginning = position * self->type_size;
-    object_amount = (object_amount > (hdsa_dynamic_array_size(self) - position)) ? (hdsa_dynamic_array_size(self) - position) : object_amount;
+    object_amount = (object_amount > (hdsa_dynamic_array_size(self) - position)) ? (hdsa_dynamic_array_size(self) - position) : object_amount; // Making sure that object_amount doesn't go above the array's size
     ptrdiff_t real_end = (position + object_amount) * self->type_size;
 
     for (ptrdiff_t i = real_beginning; i < real_end; ++i)
@@ -243,7 +210,7 @@ void hdsa_dynamic_array_zero_fill_multiple(hdsa_Dynamic_Array* const self, ptrdi
  *
  * If the array is empty (self->buffer_size being 0) the function does nothing.
  */
-void hdsa_dynamic_array_zero_fill_array(hdsa_Dynamic_Array* const self)
+void hdsa_dynamic_array_zero_fill_all(hdsa_Dynamic_Array* const self)
 {
     HDSA_BASIC_ASSERT((self), "The dynamic array pointer is null.\n");
     HDSA_BASIC_ASSERT((self->buffer), "The dynamic array buffer is null.\n");
@@ -974,7 +941,7 @@ void hdsa_dynamic_array_erase(hdsa_Dynamic_Array* const self, ptrdiff_t position
     }
 
     ptrdiff_t real_pos = position * self->type_size;
-    object_amount = (object_amount > (hdsa_dynamic_array_size(self) - position)) ? (hdsa_dynamic_array_size(self) - position) : object_amount;
+    object_amount = (object_amount > (hdsa_dynamic_array_size(self) - position)) ? (hdsa_dynamic_array_size(self) - position) : object_amount; // Making sure that object_amount doesn't go above the array's size
     ptrdiff_t real_erase_size = object_amount *self->type_size;
 
     /**
@@ -992,6 +959,6 @@ void hdsa_dynamic_array_erase(hdsa_Dynamic_Array* const self, ptrdiff_t position
 
     ptrdiff_t last_index = hdsa_dynamic_array_last_index(self);
 
-    hdsa_dynamic_array_zero_fill_multiple(self, last_index - object_amount + 1, object_amount);
+    hdsa_dynamic_array_zero_fill(self, last_index - object_amount + 1, object_amount);
     self->buffer_size -= real_erase_size;
 }
