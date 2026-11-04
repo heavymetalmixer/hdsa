@@ -724,70 +724,6 @@ void hdsa_dynamic_array_pop(hdsa_Dynamic_Array* const self)
 }
 
 /**
- * @brief It inserts a T sized object in the middle of the array, by first
- * copying all the existing data after "position" to the next position (given
- * by type_size) and then copying "object" in the provided position.
- *
- * Quite an expensive operation so it's not recommended to use it unless you
- * really need to. Needless to say, if you pass as "object" something that
- * isn't the same type as T undefined behavior could happen.
- *
- * It may allocate a new and bigger buffer is the current one is full.
- * @param[in] self The dynamic array pointer, must not be null.
- * @param[in] object Data to copy at the offset specified by "position".
- * @param[in] position Index of size T where object goes. It must be from 0 to
- * (hdsa_dynamic_array_last_index + 1).
- * @param[out] data_out Output pointer to a ponter that will contain the
- * address to the data that will be added to the array, must not be null.
- * @param[out] error_out Pointer to the error struct, must not be null.
- * @returns True if the allocation succeeded or wasn't needed, false if the
- * allocation failed.
- */
-bool hdsa_dynamic_array_insert
-(
-    hdsa_Dynamic_Array* const self,
-    const void* const object,
-    ptrdiff_t position,
-    void** const data_out,
-    hdsa_Error* const error_out
-)
-{
-    HDSA_BASIC_ASSERT((error_out), "The error struct must not be null.\n");
-    HDSA_BASIC_ASSERT((self), "The dynamic array pointer is null.\n");
-    HDSA_BASIC_ASSERT((object), "The object pointer is null.\n");
-    HDSA_BASIC_ASSERT((self->v_alloc), "The Allocator Virtual pointer is null.\n");
-    HDSA_BASIC_ASSERT((self->v_alloc->mode == HDSA_ALLOCATOR_VIRTUAL_STATIC), "The Allocator Virtual mode isn't Static.\n");
-    HDSA_BASIC_ASSERT((self->buffer), "The dynamic array buffer is null.\n");
-    HDSA_BASIC_ASSERT((self->v_alloc->last_block), "The Allocator Virtual last_block pointer is null.\n");
-    HDSA_BASIC_ASSERT(((position > -1) && (position <= hdsa_dynamic_array_size(self))), "The position is out of bounds.\n");
-
-    ptrdiff_t real_pos = position * self->type_size;
-    const unsigned char* const data = (unsigned char*)object;
-
-    if ((self->buffer_size + self->type_size) >= self->buffer_capacity)
-    {
-        if (!hdsa_dynamic_array_grow(self, (self->buffer_size + self->type_size) - self->buffer_capacity, self->type_size, position, error_out))
-        {
-            return false;
-        }
-    }
-    else
-    {
-        if (hdsa_dynamic_array_last_index((const hdsa_Dynamic_Array* const)self) >= position)
-        {
-            hdsa_dynamic_array_copy_to_move_up(self, self->buffer, self->type_size, real_pos);
-        }
-    }
-
-    hdsa_dynamic_array_copy_objects(self, data, self->type_size, real_pos);
-    *data_out = (void*)((ptrdiff_t)self->buffer + real_pos);
-    self->buffer_size += self->type_size;
-    error_out->code = HDSA_ERROR_SUCCESS;
-
-    return true;
-}
-
-/**
  * @brief It inserts an array of "n" T sized objects in the middle of the
  * array, by first copying all the existing data after "position" to the
  * index after "object_array_size" and then copying "object" in the
@@ -812,7 +748,7 @@ bool hdsa_dynamic_array_insert
  * @returns True if the allocation succeeded or wasn't needed, false if the
  * allocation failed.
  */
-bool hdsa_dynamic_array_insert_multiple
+bool hdsa_dynamic_array_insert
 (
     hdsa_Dynamic_Array* const self,
     const void* const object_array,
@@ -825,6 +761,7 @@ bool hdsa_dynamic_array_insert_multiple
     HDSA_BASIC_ASSERT((error_out), "The error struct must not be null.\n");
     HDSA_BASIC_ASSERT((self), "The dynamic array pointer is null.\n");
     HDSA_BASIC_ASSERT((object_array), "The object array pointer is null.\n");
+    HDSA_BASIC_ASSERT((object_array_size > 0), "The size of the object array pointer is 0 or negative.\n");
     HDSA_BASIC_ASSERT((self->v_alloc), "The Allocator Virtual pointer is null.\n");
     HDSA_BASIC_ASSERT((self->v_alloc->mode == HDSA_ALLOCATOR_VIRTUAL_STATIC), "The Allocator Virtual mode isn't Static.\n");
     HDSA_BASIC_ASSERT((self->buffer), "The dynamic array buffer is null.\n");
@@ -946,8 +883,8 @@ bool hdsa_dynamic_array_assign_multiple
 (
     hdsa_Dynamic_Array* const self,
     void* object_array,
-    ptrdiff_t object_array_size,
     ptrdiff_t position,
+    ptrdiff_t object_array_size,
     hdsa_Error* const error_out
 )
 {
@@ -996,53 +933,6 @@ bool hdsa_dynamic_array_assign_multiple
 }
 
 /**
- * @brief It deletes a T sized object in the middle of the array by copying
- * the existing data after "position" to the previous index (given by
- * type_size). After that, the "free last index" is filled with 0s.
- *
- * Quite an expensive operation so it's not recommended to use it unless you
- * really need to.
- * @param[in] self The dynamic array pointer, must not be null.
- * @param[in] position Index of size T of the object to be deleted. It must
- * be from 0 to hdsa_dynamic_array_last_index.
- */
-void hdsa_dynamic_array_erase(hdsa_Dynamic_Array* const self, ptrdiff_t position)
-{
-    HDSA_BASIC_ASSERT((self), "The dynamic array pointer is null.\n");
-    HDSA_BASIC_ASSERT((self->buffer), "The dynamic array buffer is null.\n");
-    HDSA_BASIC_ASSERT(((position > -1) && (position < hdsa_dynamic_array_size(self))), "The position is out of bounds.\n");
-
-    if
-    (
-        !self ||
-        !self->buffer ||
-        (self->buffer_size == 0) ||
-        (position < 0) ||
-        (position > hdsa_dynamic_array_last_index(self))
-    )
-    {
-        return;
-    }
-
-    ptrdiff_t real_pos = position * self->type_size;
-
-    /**
-     * If "position" isn't the after last index in the array this loop
-     * copies the existing data to the previous indexes, starting from real_pos.
-     */
-    if (hdsa_dynamic_array_last_index((const hdsa_Dynamic_Array* const)self) >= position)
-    {
-        for (ptrdiff_t i = real_pos; (i + self->type_size) < self->buffer_size; ++i)
-        {
-            self->buffer[i] = self->buffer[i + self->type_size];
-        }
-    }
-
-    hdsa_dynamic_array_zero_fill_single(self, hdsa_dynamic_array_last_index(self));
-    self->buffer_size -= self->type_size;
-}
-
-/**
  * @brief It deletes a certain amount of T sized objects in the middle of the
  * array by copying the existing data after "position" n indexes above, with
  * "n" being "object_amount", to the previous indexes by that same distance.
@@ -1063,7 +953,7 @@ void hdsa_dynamic_array_erase(hdsa_Dynamic_Array* const self, ptrdiff_t position
  * least 1 and if it goes beyond the size of the array, all the data inside
  * the array will be erased.
  */
-void hdsa_dynamic_array_erase_multiple(hdsa_Dynamic_Array* const self, ptrdiff_t position, ptrdiff_t object_amount)
+void hdsa_dynamic_array_erase(hdsa_Dynamic_Array* const self, ptrdiff_t position, ptrdiff_t object_amount)
 {
     HDSA_BASIC_ASSERT((self), "The dynamic array pointer is null.\n");
     HDSA_BASIC_ASSERT((self->buffer), "The dynamic array buffer is null.\n");

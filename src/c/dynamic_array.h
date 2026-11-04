@@ -57,8 +57,6 @@ bool hdsa_dynamic_array_init
     hdsa_Error* const error_out
 );
 
-#define da_init(self, virtual_alloc, object_amount, T, error_out) (hdsa_dynamic_array_init((self), (virtual_alloc), (object_amount), ((ptrdiff_t)sizeof(T)), ((ptrdiff_t)_Alignof(T)), error_out))
-
 /**
  * @returns Current amount of objects of size of type T the array
  * holds, not the current buffer_size.
@@ -238,35 +236,6 @@ bool hdsa_dynamic_array_push
 void hdsa_dynamic_array_pop(hdsa_Dynamic_Array* const self);
 
 /**
- * @brief It inserts a T sized object in the middle of the array, by first
- * copying all the existing data after "position" to the next position (given
- * by type_size) and then copying "object" in the provided position.
- *
- * Quite an expensive operation so it's not recommended to use it unless you
- * really need to. Needless to say, if you pass as "object" something that
- * isn't the same type as T undefined behavior could happen.
- *
- * It may allocate a new and bigger buffer is the current one is full.
- * @param[in] self The dynamic array pointer, must not be null.
- * @param[in] object Data to copy at the offset specified by "position".
- * @param[in] position Index of size T where object goes. It must be from 0 to
- * (hdsa_dynamic_array_last_index + 1).
- * @param[out] data_out Output pointer to a ponter that will contain the
- * address to the data after it's being added to the array, must not be null.
- * @param[out] error_out Pointer to the error struct, must not be null.
- * @returns True if the allocation succeeded or wasn't needed, false if the
- * allocation failed.
- */
-bool hdsa_dynamic_array_insert
-(
-    hdsa_Dynamic_Array* const self,
-    const void* const object,
-    ptrdiff_t position,
-    void** const data_out,
-    hdsa_Error* const error_out
-);
-
-/**
  * @brief It inserts an array of "n" T sized objects in the middle of the
  * array, by first copying all the existing data after "position" to the
  * index after "object_array_size" and then copying "object" in the
@@ -293,7 +262,7 @@ bool hdsa_dynamic_array_insert
  * @returns True if the allocation succeeded or wasn't needed, false if the
  * allocation failed.
  */
-bool hdsa_dynamic_array_insert_multiple
+bool hdsa_dynamic_array_insert
 (
     hdsa_Dynamic_Array* const self,
     const void* const object_array,
@@ -322,8 +291,6 @@ bool hdsa_dynamic_array_insert_multiple
  * If the array is empty or the position is out of bounds null is returned.
  */
 void* hdsa_dynamic_array_object_at(const hdsa_Dynamic_Array* const self, ptrdiff_t position);
-
-#define object_at(self, T, position) ((T*)hdsa_dynamic_array_object_at((self), (position)))
 
 /**
  * @brief It overwrites the data at "position" with "object", but "position"
@@ -365,19 +332,6 @@ bool hdsa_dynamic_array_assign_multiple
 );
 
 /**
- * @brief It deletes a T sized object in the middle of the array by copying
- * the existing data after "position" to the previous index (given by
- * type_size). After that, the "free last index" is filled with 0s.
- *
- * Quite an expensive operation so it's not recommended to use it unless you
- * really need to.
- * @param[in] self The dynamic array pointer, must not be null.
- * @param[in] position Index of size T of the object to be deleted. It must
- * be from 0 to hdsa_dynamic_array_last_index.
- */
-void hdsa_dynamic_array_erase(hdsa_Dynamic_Array* const self, ptrdiff_t position);
-
-/**
  * @brief It deletes a certain amount of T sized objects in the middle of the
  * array by copying the existing data after "position" n indexes above, with
  * "n" being "object_amount", to the previous indexes by that same distance.
@@ -398,6 +352,6 @@ void hdsa_dynamic_array_erase(hdsa_Dynamic_Array* const self, ptrdiff_t position
  * least 1 and if it goes beyond the size of the array, all the data inside
  * the array will be erased.
  */
-void hdsa_dynamic_array_erase_multiple(hdsa_Dynamic_Array* const self, ptrdiff_t beginning, ptrdiff_t end);
+void hdsa_dynamic_array_erase(hdsa_Dynamic_Array* const self, ptrdiff_t beginning, ptrdiff_t end);
 
 #endif // HDSA_DYNAMIC_ARRAY_H

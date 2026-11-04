@@ -7,7 +7,7 @@ set(CMAKE_C_COMPILER gcc) # gcc, clang or cl. For clang use -fuse-ld=lld as well
 set(CMAKE_C_EXTENSIONS OFF)
 
 # The option -DNDEBUG disables all standard C asserts, and -DHDSA_DISABLE_ASSERTS disables the HDSA asserts
-set(CMAKE_C_FLAGS_DEBUG "-v -ftime-report -fdiagnostics-color=always -m64 -O0 -g3 -Wall -Wextra -Wstrict-prototypes -Wconversion -Warith-conversion -Wsign-conversion -Wsign-compare -Wuninitialized -Wunused -Wunused-parameter -Wshadow -Wpedantic -Winline -std=c${CMAKE_C_STANDARD}" CACHE STRING "" FORCE)
+set(CMAKE_C_FLAGS_DEBUG "-v -ftime-report -fdiagnostics-color=always -m64 -O0 -g3 -Wall -Wextra -Wstrict-prototypes -Wconversion -Warith-conversion -Wsign-conversion -Wsign-compare -Wuninitialized -Wunused -Wunused-parameter -Wshadow -pedantic-errors -Winline -std=c${CMAKE_C_STANDARD}" CACHE STRING "" FORCE)
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "-v -ftime-report -fdiagnostics-color=always -m64 -Wall -O1 -g3 -Wextra -Wstrict-prototypes -Wconversion -Warith-conversion -Wsign-conversion -Wsign-compare -Wuninitialized -Wunused -Wunused-parameter -Wshadow -Wpedantic -Winline -std=c${CMAKE_C_STANDARD}" CACHE STRING "" FORCE)
 set(CMAKE_C_FLAGS_RELEASE "-v -ftime-report -fdiagnostics-color=always -m64 -DHDSA_DISABLE_ASSERTS -O3 -g0 -Wall -Wextra -Wstrict-prototypes -Wconversion -Warith-conversion -Wsign-conversion -Wsign-compare -Wuninitialized -Wunused -Wunused-parameter -Wshadow -Wpedantic -Winline -std=c${CMAKE_C_STANDARD}" CACHE STRING "" FORCE)
 
@@ -50,6 +50,7 @@ set(SOURCE_FILES
     src/c/virtual_alloc.c
     src/c/arena_alloc.c
     src/c/stack_alloc.c
+    src/c/free_list_alloc.c
     src/c/dynamic_array.c
     src/hdsa.c)
 
