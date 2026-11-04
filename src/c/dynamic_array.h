@@ -101,8 +101,7 @@ void hdsa_dynamic_array_zero_fill(hdsa_Dynamic_Array* const self, ptrdiff_t posi
 
 /**
  * @brief This one fills the entire buffer until self->buffer_size with zeroes,
- * an expensive operation and just like other 2 "zero_fill" functions it's
- * completely optional.
+ * an expensive operation.
  *
  * Bear in mind: self->buffer_size isn't modified with this function as the
  * data after beginning won't be moved.
