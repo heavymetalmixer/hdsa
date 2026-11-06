@@ -377,6 +377,7 @@ void hdsa_allocator_arena_reset(hdsa_Allocator_Arena* const self)
     self->v_alloc.last_block->used_block = (ptrdiff_t)sizeof(hdsa_Allocator_Memory_Block);
     self->previous_offset = (ptrdiff_t)sizeof(hdsa_Allocator_Memory_Block);
     self->current_offset = (ptrdiff_t)sizeof(hdsa_Allocator_Memory_Block);
+
     self->used_total = (ptrdiff_t)sizeof(hdsa_Allocator_Memory_Block);
     self->allocation_amount = 1;
 

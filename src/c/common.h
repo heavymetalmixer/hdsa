@@ -104,6 +104,6 @@ ptrdiff_t hdsa_common_align_forward(ptrdiff_t ptr, ptrdiff_t alignment);
  * @returns A new aligned address for ptr as a ptrdiff_t value. It will be at
  * least as big as header_size.
  */
-ptrdiff_t hdsa_common_calc_padding_with_header(ptrdiff_t ptr, ptrdiff_t header_size, ptrdiff_t allocation_alignment);
+ptrdiff_t hdsa_common_calc_padding_with_header(ptrdiff_t ptr, ptrdiff_t header_size, ptrdiff_t alignment);
 
 #endif // HDSA_COMMON_H
