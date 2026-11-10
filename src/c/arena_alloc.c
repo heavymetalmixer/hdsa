@@ -1,20 +1,20 @@
 #include "arena_alloc.h"
 
 /**
- * @brief It initializes the Allocator Arena with an existing buffer of a
+ * @brief It initializes the Allocator_Arena with an existing buffer of a
  * certain size.
  * @param[in] self Allocator_Arena pointer, must not be null.
  * @param[in] buff Buffer being assigned to the Allocator_Arena. It can be null
  * but make sure to change it later on. If it is null or size is 0, all the
- * arena's data is set to 0/null.
+ * allocator's data is set to 0/null.
  * @param[in] size Size of the buffer in bytes, must be at least 0.
  */
-void hdsa_allocator_arena_init_external(hdsa_Allocator_Arena* const self, void* buff, ptrdiff_t size)
+void hdsa_allocator_arena_init_external(hdsa_Allocator_Arena* const self, void* buffer, ptrdiff_t size)
 {
     HDSA_BASIC_ASSERT((self), "The Allocator_Arena pointer is null.\n");
     HDSA_BASIC_ASSERT((size > -1), "The buffer size to initialize the Allocator_Arena is less than 1.\n");
 
-    hdsa_allocator_virtual_init_external(&self->v_alloc, buff, size);
+    hdsa_allocator_virtual_init_external(&self->v_alloc, buffer, size);
     self->previous_offset = 0;
     self->current_offset = 0;
     self->allocation_amount = 0;
@@ -63,6 +63,8 @@ bool hdsa_allocator_arena_init_static(hdsa_Allocator_Arena* const self, ptrdiff_
         self->allocation_amount += 1;
     }
 
+    error_out->code = HDSA_ERROR_SUCCESS;
+
     return true;
 }
 
@@ -108,6 +110,8 @@ bool hdsa_allocator_arena_init_dynamic(hdsa_Allocator_Arena* const self, ptrdiff
         self->used_total += self->v_alloc.last_block->used_block;
         self->allocation_amount += 1;
     }
+
+    error_out->code = HDSA_ERROR_SUCCESS;
 
     return true;
 }

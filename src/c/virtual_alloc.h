@@ -55,6 +55,8 @@ typedef enum hdsa_Allocator_Virtual_Mode
     HDSA_ALLOCATOR_VIRTUAL_EXTERNAL
 } hdsa_Allocator_Virtual_Mode;
 
+typedef struct hdsa_Allocator_Memory_Block hdsa_Allocator_Memory_Block;
+
 /**
  * @brief This is a Memory Block for the Allocator_Virtual in Static or Dynamic
  * modes.
@@ -65,7 +67,7 @@ typedef struct hdsa_Allocator_Memory_Block
     ptrdiff_t reserved_block;
     ptrdiff_t committed_block;
     ptrdiff_t used_block;
-    struct hdsa_Allocator_Memory_Block* previous_block;
+    hdsa_Allocator_Memory_Block* previous_block;
 } hdsa_Allocator_Memory_Block;
 
 /**
@@ -119,6 +121,18 @@ typedef struct hdsa_Allocator_Virtual
 } hdsa_Allocator_Virtual;
 
 /**
+ * @brief A different init function for when the user wants to provide a
+ * buffer, regardless of where it comes from.
+ * No allocation will be done in this function.
+ * @param[in] self Pointer to the Allocator_Virtual, must not be null.
+ * @param[in] buff Buffer being assigned to the Allocator_Arena. It can be null
+ * but make sure to change it later on. If it is null both sizes in the
+ * allocator are set to 0.
+ * @param[in] size Size of the user-provided buffer.
+ */
+void hdsa_allocator_virtual_init_external(hdsa_Allocator_Virtual* const self, void* buffer, ptrdiff_t size);
+
+/**
  * @brief It initializes the Allocator_Virtual to zeroes on all the data
  * fields and performs an allocation for an initial buffer of the user wants
  * to.
@@ -162,18 +176,6 @@ bool hdsa_allocator_virtual_init_static(hdsa_Allocator_Virtual* const self, ptrd
  * false if the allocation fails.
  */
 bool hdsa_allocator_virtual_init_dynamic(hdsa_Allocator_Virtual* const self, ptrdiff_t reserved_size, ptrdiff_t committed_size, hdsa_Error* const error_out);
-
-/**
- * @brief A different init function for when the user wants to provide a
- * buffer, regardless of where it comes from.
- * No allocation will be done in this function.
- * @param[in] self Pointer to the Allocator_Virtual, must not be null.
- * @param[in] buff Buffer being assigned to the Allocator_Arena. It can be null
- * but make sure to change it later on. If it is null both sizes in the
- * allocator are set to 0.
- * @param[in] size Size of the user-provided buffer.
- */
-void hdsa_allocator_virtual_init_external(hdsa_Allocator_Virtual* const self, void* buff, ptrdiff_t size);
 
 /**
  * @returns The amount of commited pages in the allocator

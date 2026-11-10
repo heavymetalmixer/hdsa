@@ -276,6 +276,16 @@ bool hdsa_dynamic_array_insert
 void* hdsa_dynamic_array_object_at(const hdsa_Dynamic_Array* const self, ptrdiff_t position);
 
 /**
+ * @brief It returns an index from the array from a user-provided pointer.
+ * @param[in] self The dynamic array pointer, must not be null.
+ * @param[in] ptr Pointer the user passes to get its index inside the array,
+ * it can be null.
+ * @returns The index where ptr resides inside the array, or -1 if ptr or
+ * self->buffer are null, otr if ptr isn't inside self-buffer.
+ */
+ptrdiff_t hdsa_dynamic_array_index_from(const hdsa_Dynamic_Array* const self, const void* const ptr);
+
+/**
  * @brief It overwrites the data at "position" with "object", but "position"
  * must be an existing position in the array already, as this function doesn't
  * increase the size of the array.

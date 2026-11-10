@@ -2,21 +2,21 @@
 
 
 /**
- * @brief It initializes the Allocator Stack with an existing buffer of a
+ * @brief It initializes the Allocator_Stack with an existing buffer of a
  * certain size. It doesn't use the Memory Block's header nor the
  * Allocator_Stack_Last's header.
  * @param[in] self Allocator_Stack pointer, must not be null.
  * @param[in] buff Buffer being assigned to the Allocator_Stack. It can be null
  * but make sure to change it later on. If it is null or size is 0, all the
- * arena's data is set to 0/null.
+ * allocator's data is set to 0/null.
  * @param[in] size Size of the buffer in bytes, must be at least 0.
  */
-void hdsa_allocator_stack_init_external(hdsa_Allocator_Stack* const self, void* buff, ptrdiff_t size)
+void hdsa_allocator_stack_init_external(hdsa_Allocator_Stack* const self, void* buffer, ptrdiff_t size)
 {
     HDSA_BASIC_ASSERT((self), "The Allocator_Stack pointer is null.\n");
     HDSA_BASIC_ASSERT((size > -1), "The buffer size to initialize the Allocator_Stack is less than 1.\n");
 
-    hdsa_allocator_virtual_init_external(&self->v_alloc, buff, size);
+    hdsa_allocator_virtual_init_external(&self->v_alloc, buffer, size);
     self->start_offset = 0;
     self->current_offset = 0;
     self->allocation_amount = 0;
@@ -72,6 +72,8 @@ bool hdsa_allocator_stack_init_static(hdsa_Allocator_Stack* const self, ptrdiff_
         self->used_total += self->v_alloc.last_block->used_block;
         self->allocation_amount += 2;
     }
+
+    error_out->code = HDSA_ERROR_SUCCESS;
 
     return true;
 }

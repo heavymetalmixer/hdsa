@@ -116,16 +116,16 @@ typedef struct hdsa_Allocator_Stack_Last
 } hdsa_Allocator_Stack_Last;
 
 /**
- * @brief It initializes the Allocator Stack with an existing buffer of a
+ * @brief It initializes the Allocator_Stack with an existing buffer of a
  * certain size. It doesn't use the Memory Block's header nor the
  * Allocator_Stack_Last's header.
  * @param[in] self Allocator_Stack pointer, must not be null.
  * @param[in] buff Buffer being assigned to the Allocator_Stack. It can be null
  * but make sure to change it later on. If it is null or size is 0, all the
- * arena's data is set to 0/null.
+ * allocator's data is set to 0/null.
  * @param[in] size Size of the buffer in bytes, must be at least 0.
  */
-void hdsa_allocator_stack_init_external(hdsa_Allocator_Stack* const self, void* buff, ptrdiff_t size);
+void hdsa_allocator_stack_init_external(hdsa_Allocator_Stack* const self, void* buffer, ptrdiff_t size);
 
 /**
  * @brief It initializes the Allocator_Stack with sizes for reserved and

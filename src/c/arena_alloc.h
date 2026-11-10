@@ -78,15 +78,15 @@ typedef struct hdsa_Allocator_Arena
 } hdsa_Allocator_Arena;
 
 /**
- * @brief It initializes the Allocator Arena with an existing buffer of a
+ * @brief It initializes the Allocator_Arena with an existing buffer of a
  * certain size.
  * @param[in] self Allocator_Arena pointer, must not be null.
  * @param[in] buff Buffer being assigned to the Allocator_Arena. It can be null
  * but make sure to change it later on. If it is null or size is 0, all the
- * arena's data is set to 0/null.
+ * allocator's data is set to 0/null.
  * @param[in] size Size of the buffer in bytes, must be at least 0.
  */
-void hdsa_allocator_arena_init_external(hdsa_Allocator_Arena* const self, void* buff, ptrdiff_t size);
+void hdsa_allocator_arena_init_external(hdsa_Allocator_Arena* const self, void* buffer, ptrdiff_t size);
 
 /**
  * @brief It initializes the arena with sizes for reserved and committed memory

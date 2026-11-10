@@ -1,4 +1,6 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/settings.json
+sec/c/free_list_allocc.back
+sec/c/free_list_alloch.back
 build/*

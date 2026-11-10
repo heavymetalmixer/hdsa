@@ -55,6 +55,35 @@ ptrdiff_t hdsa_virtual_granularity_size(void)
 }
 
 /**
+ * @brief A different init function for when the user wants to provide a
+ * buffer, regardless of where it comes from.
+ * No allocation will be done in this function.
+ * @param[in] self Pointer to the Allocator_Virtual, must not be null.
+ * @param[in] buff Buffer being assigned to the Allocator_Arena. It can be null
+ * but make sure to change it later on. If it is null both sizes in the
+ * allocator are set to 0.
+ * @param[in] size Size of the user-provided buffer.
+ */
+void hdsa_allocator_virtual_init_external(hdsa_Allocator_Virtual* const self, void* buffer, ptrdiff_t size)
+{
+    HDSA_BASIC_ASSERT((self), "The hdsa_Allocator_Virtual pointer is null.\n");
+    HDSA_BASIC_ASSERT((size > -1), "The size for the user-provided buffer is negative.\n");
+
+    self->buffer = (unsigned char*)0;
+    self->reserved_total = 0;
+    self->committed_total = 0;
+    self->last_block = (hdsa_Allocator_Memory_Block*)0;
+    self->mode = HDSA_ALLOCATOR_VIRTUAL_EXTERNAL;
+
+    if (buffer && (size > 0))
+    {
+        self->buffer = buffer;
+        self->reserved_total = size;
+        self->committed_total = size;
+    }
+}
+
+/**
  * @brief It initializes the Allocator_Virtual to zeroes on all the data
  * fields and performs an allocation for an initial buffer of the user wants
  * to.
@@ -149,35 +178,6 @@ bool hdsa_allocator_virtual_init_dynamic(hdsa_Allocator_Virtual* const self, ptr
     error_out->code = HDSA_ERROR_SUCCESS;
 
     return true;
-}
-
-/**
- * @brief A different init function for when the user wants to provide a
- * buffer, regardless of where it comes from.
- * No allocation will be done in this function.
- * @param[in] self Pointer to the Allocator_Virtual, must not be null.
- * @param[in] buff Buffer being assigned to the Allocator_Arena. It can be null
- * but make sure to change it later on. If it is null both sizes in the
- * allocator are set to 0.
- * @param[in] size Size of the user-provided buffer.
- */
-void hdsa_allocator_virtual_init_external(hdsa_Allocator_Virtual* const self, void* buff, ptrdiff_t size)
-{
-    HDSA_BASIC_ASSERT((self), "The hdsa_Allocator_Virtual pointer is null.\n");
-    HDSA_BASIC_ASSERT((size > -1), "The size for the user-provided buffer is negative.\n");
-
-    self->buffer = (unsigned char*)0;
-    self->reserved_total = 0;
-    self->committed_total = 0;
-    self->last_block = (hdsa_Allocator_Memory_Block*)0;
-    self->mode = HDSA_ALLOCATOR_VIRTUAL_EXTERNAL;
-
-    if (buff && (size > 0))
-    {
-        self->buffer = buff;
-        self->reserved_total = size;
-        self->committed_total = size;
-    }
 }
 
 /**
