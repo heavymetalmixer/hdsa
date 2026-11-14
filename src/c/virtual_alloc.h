@@ -264,7 +264,7 @@ bool hdsa_allocator_virtual_commit(hdsa_Allocator_Virtual* const self, ptrdiff_t
  * @param[out] error_out Parameter for error reporting, must not be null.
  * @returns True if both reservation and commiting succeed, false otherwise.
  */
-bool hdsa_allocator_virtual_allocate(hdsa_Allocator_Virtual* const self, ptrdiff_t reserved_size, ptrdiff_t committed_size, void**const allocation_out, hdsa_Error* const error_out);
+bool hdsa_allocator_virtual_allocate(hdsa_Allocator_Virtual* const self, ptrdiff_t reserved_size, ptrdiff_t committed_size, void** const allocation_out, hdsa_Error* const error_out);
 
 /**
  * @brief If the Allocator_Virtual is in Dynamic or Static mode this function

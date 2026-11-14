@@ -92,18 +92,36 @@ bool hdsa_common_is_aligned(const void* const ptr, const ptrdiff_t alignment);
 ptrdiff_t hdsa_common_align_forward(ptrdiff_t ptr, ptrdiff_t alignment);
 
 /**
- * @brief Aligns "ptr" to "alignment" (while taking into account "header_size")
- * to prevent slowdowns, crashes or UB caused by un-aligned memory access by
- * the CPU and returns the necessary padding amount for it.
+ * @brief Padding to align "ptr" to "alignment" (while taking into account
+ * "header_size") to prevent slowdowns, crashes or UB caused by un-aligned
+ * memory access by the CPU and returns the necessary padding amount for it.
  * @param[in] ptr Pointer to align. The address inside of it must be
  * representable by ptrdiff_t and it must not be null.
  * @param[in] header_size Size of a header that will be used in the allocation
  * as well. This size will be used as the minimum padding, and it must be 1 or
  * bigger.
  * @param[in] alignment Alignment value to use on ptr, must be 1 or bigger.
- * @returns A new aligned address for ptr as a ptrdiff_t value. It will be at
- * least as big as header_size.
+ * @returns Padding to align ptr as a ptrdiff_t value. It will be at least as
+ * big as header_size.
  */
-ptrdiff_t hdsa_common_calc_padding_with_header(ptrdiff_t ptr, ptrdiff_t header_size, ptrdiff_t alignment);
+ptrdiff_t hdsa_common_padding_with_header(ptrdiff_t ptr, ptrdiff_t header_size, ptrdiff_t alignment);
+
+/**
+ * @brief Padding to align "ptr" to "alignment" like
+ * calc_inverse_padding_with_header but to a previous address (subtract the
+ * returned value from ptr) and for the alignment of the header.
+ *
+ * Commonly used to calculate the padding for a footer for a node inside a
+ * linked-list.
+ * @param[in] ptr Pointer to align. The address inside of it must be
+ * representable by ptrdiff_t and it must not be null.
+ * @param[in] header_size Size of a header that will be used in the allocation
+ * as well. This size will be used as the minimum padding, and it must be 1 or
+ * bigger.
+ * @param[in] alignment Alignment value to use on ptr, must be 1 or bigger.
+ * @returns Padding to align ptr as a ptrdiff_t value. It will be at least as
+ * big as header_size.
+ */
+ptrdiff_t hdsa_common_inverse_padding_for_header(ptrdiff_t ptr, ptrdiff_t header_size, ptrdiff_t alignment);
 
 #endif // HDSA_COMMON_H
