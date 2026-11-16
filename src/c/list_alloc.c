@@ -1,4 +1,4 @@
-#include "free_list_alloc.h"
+#include "list_alloc.h"
 
 /**
  * @brief It adds a used a node to the free list.
@@ -10,12 +10,6 @@ static void hdsa_allocator_list_free_list_add(hdsa_Allocator_List* const self, h
 {
     HDSA_BASIC_ASSERT((self), "The Allocator_List pointer is null.\n");
     HDSA_BASIC_ASSERT((new_node), "new_node is null.\n");
-
-    if (!new_node)
-    {
-        puts("new_node is null, no nodes will be inserted in the free list.\n");
-        return;
-    }
 
     if (self->head == new_node)
     {
@@ -45,137 +39,148 @@ static void hdsa_allocator_list_free_list_add(hdsa_Allocator_List* const self, h
  * allocation.
  * @param[in] self Allocator_List pointer, must not be null.
  * @param[in] delete_node Node to remove from the free list, must not be null.
+ * @param[in] error_out Pointer to the error struct, must not be null.
+ * @returns True if delete_node was removed from the used list, false
+ * othwerwise.
  */
-static void hdsa_allocator_list_free_list_remove(hdsa_Allocator_List* const self, hdsa_Allocator_List_Free* const delete_node)
+static bool hdsa_allocator_list_free_list_remove(hdsa_Allocator_List* const self, hdsa_Allocator_List_Free* const * const delete_node, hdsa_Error* const error_out)
 {
     HDSA_BASIC_ASSERT((self), "The Allocator_List pointer is null.\n");
-
-    if (!delete_node)
-    {
-        puts("del_node is null, no nodes will be removed from the free list.\n");
-        return;
-    }
+    HDSA_BASIC_ASSERT((error_out), "The hdsa_Error pointer is null.\n");
+    HDSA_BASIC_ASSERT((delete_node), "delete_node is null.\n");
 
     if (!self->head)
     {
-        puts("head is null, no nodes will be removed from the free list.\n");
-        return;
+        error_out->code = HDSA_ERROR_ALLOCATION_FREE_LIST_IS_EMPTY;
+        HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, !self->used_head, __LINE__ - 3, "The free list in the Allocator_List is empty, self->head is null.\n");
+
+        return false;
     }
 
-    hdsa_Allocator_List_Free* previous_node = delete_node->previous;
-    hdsa_Allocator_List_Free* next_node = delete_node->next;
+    if (!(*delete_node))
+    {
+        error_out->code = HDSA_ERROR_ALLOCATION_FREE_NODE_WASNT_REMOVED;
+        HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, !(*delete_node), __LINE__ - 3, "A pointer provided by user isn't part of the free list in the Allocator_List.\n");
 
-    if (self->head == delete_node)
+        return false;
+    }
+
+    hdsa_Allocator_List_Free* previous_node = (*delete_node)->previous;
+    hdsa_Allocator_List_Free* next_node = (*delete_node)->next;
+
+    if (self->head == (*delete_node))
     {
         self->head->next = (hdsa_Allocator_List_Free*)0;
         next_node->previous = (hdsa_Allocator_List_Free*)0;
         self->head = next_node;
+        error_out->code = HDSA_ERROR_SUCCESS;
 
-        return;
+        return true;
     }
 
     if (previous_node == self->head)
     {
         self->head->next = next_node;
         next_node->previous = self->head;
-        delete_node->next = (hdsa_Allocator_List_Free*)0;
-        delete_node->previous = (hdsa_Allocator_List_Free*)0;
+        (*delete_node)->next = (hdsa_Allocator_List_Free*)0;
+        (*delete_node)->previous = (hdsa_Allocator_List_Free*)0;
+        error_out->code = HDSA_ERROR_SUCCESS;
 
-        return;
+        return true;
     }
 
     previous_node->next = next_node;
     next_node->previous = previous_node;
-    delete_node->next = (hdsa_Allocator_List_Free*)0;
-    delete_node->previous = (hdsa_Allocator_List_Free*)0;
+    (*delete_node)->next = (hdsa_Allocator_List_Free*)0;
+    (*delete_node)->previous = (hdsa_Allocator_List_Free*)0;
+    error_out->code = HDSA_ERROR_SUCCESS;
+
+    return true;
 }
 
 /**
  * @brief It adds a used a node to the used list to be delivered to the user.
  * @param[in] self Allocator_List pointer, must not be null.
- * @param[in] new_node Node to add to the free list, if it's null or the
- * same as self-head this function does nothing.
+ * @param[in] new_node Node to add to the free list, must not be null not the
+ * same as self->used_head.
  */
-static void hdsa_allocator_list_used_list_add(hdsa_Allocator_List* const self, hdsa_Allocator_List_Used* const new_node)
+static void hdsa_allocator_list_used_list_add(hdsa_Allocator_List* const self, hdsa_Allocator_List_Used* const * const new_node)
 {
     HDSA_BASIC_ASSERT((self), "The Allocator_List pointer is null.\n");
     HDSA_BASIC_ASSERT((new_node), "new_node is null.\n");
-
-    if (!new_node)
-    {
-        puts("new_node is null, no nodes will be inserted in the used list.\n");
-        return;
-    }
-
-    if (self->used_head == new_node)
-    {
-        puts("The tail and new_node are the same, no new node will be inserted in the used list.\n");
-        return;
-    }
+    HDSA_BASIC_ASSERT((*new_node), "*new_node is null.\n");
+    HDSA_BASIC_ASSERT(((ptrdiff_t)(*new_node) != (ptrdiff_t)self->used_head), "*new_node is self->used_head.\n");
 
     if (!self->used_head)
     {
-        self->used_head = new_node;
-        new_node->next = (hdsa_Allocator_List_Used*)0;
+        self->used_head = *new_node;
+        (*new_node)->next = (hdsa_Allocator_List_Used*)0;
         return;
     }
 
-    new_node->next = self->used_head->next;
-    self->used_head->next = new_node;
+    (*new_node)->next = self->used_head->next;
+    self->used_head->next = *new_node;
 }
 
 /**
  * @brief It removes a node from the used list so it can be turned into a free
  * list node.
  * @param[in] self Allocator_List pointer, must not be null.
+ * @param[in] previous_node Previous used node to delete_node in the list, must
+ * not be null.
  * @param[in] delete_node Node to remove from the free list, must not be null.
+ * @param[in] error_out Pointer to the error struct, must not be null.
+ * @returns True if delete_node was removed from the used list, false
+ * othwerwise.
  */
-static void hdsa_allocator_list_used_list_remove(hdsa_Allocator_List* const self, hdsa_Allocator_List_Used* const delete_node)
+static bool hdsa_allocator_list_used_list_remove(hdsa_Allocator_List* const self, hdsa_Allocator_List_Used** const previous_node, hdsa_Allocator_List_Used** const delete_node, hdsa_Error* const error_out)
 {
     HDSA_BASIC_ASSERT((self), "The Allocator_Free_List pointer is null.\n");
-
-    if (!delete_node)
-    {
-        puts("del_node is null, no nodes will be removed from the used list.\n");
-        return;
-    }
+    HDSA_BASIC_ASSERT((error_out), "The hdsa_Error pointer is null.\n");
+    HDSA_BASIC_ASSERT((previous_node), "previous_node is null.\n");
+    HDSA_BASIC_ASSERT((delete_node), "delete_node is null.\n");
 
     if (!self->used_head)
     {
-        puts("head is null, no nodes will be removed from the used list.\n");
-        return;
+        error_out->code = HDSA_ERROR_ALLOCATION_USED_LIST_IS_EMPTY;
+        HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, !self->used_head, __LINE__ - 3, "The used list in the Allocator_List is empty, self->used_head is null.\n");
+
+        return false;
     }
 
-    hdsa_Allocator_List_Used* previous_node = self->used_head;
-
-    while(previous_node)
+    if (!(*delete_node))
     {
-        if (previous_node->next == delete_node)
+        error_out->code = HDSA_ERROR_ALLOCATION_USED_NODE_WASNT_REMOVED;
+        HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, !(*delete_node), __LINE__ - 3, "A pointer provided by user isn't part of the used list in the Allocator_List.\n");
+
+        return false;
+    }
+
+    if (!(*previous_node))
+    {
+        if ((ptrdiff_t)(*delete_node) != (ptrdiff_t)self->used_head)
         {
-            break;
+            error_out->code = HDSA_ERROR_ALLOCATION_USED_NODE_WASNT_REMOVED;
+            HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, (!(*previous_node)) && ((ptrdiff_t)(*delete_node) != (ptrdiff_t)self->used_head), __LINE__ - 3, "A pointer provided by user isn't part of the used_list in the Allocator_List.\n");
+
+            return false;
         }
 
-        previous_node = previous_node->next;
+        self->used_head = self->used_head->next;
+        error_out->code = HDSA_ERROR_SUCCESS;
+
+        return true;
     }
 
-    if (!previous_node)
-    {
-        // Case: self->used_head and delete_node are the same
-        if (self->used_head == delete_node)
-        {
-            self->used_head = (hdsa_Allocator_List_Used*)0;
-            return;
-        }
+    HDSA_BASIC_ASSERT(((ptrdiff_t)(*previous_node)->next == (ptrdiff_t)(*delete_node)), "*delete_node isn't the next of *previous_node");
 
-        // delete_node isn't part of the used_list
-        HDSA_BASIC_ASSERT((self->used_head == delete_node), "delete_node isn't part of the used list.\n");
-        return;
-    }
+    hdsa_Allocator_List_Used* next_node = (*delete_node)->next;
 
-    hdsa_Allocator_List_Used* next_node = delete_node->next;
+    (*previous_node)->next = next_node;
+    (*delete_node)->next = (hdsa_Allocator_List_Used*)0;
+    error_out->code = HDSA_ERROR_SUCCESS;
 
-    previous_node->next = next_node;
-    delete_node->next = (hdsa_Allocator_List_Used*)0;
+    return true;
 }
 
 /**
@@ -549,7 +554,7 @@ static bool hdsa_allocator_list_find_best
     hdsa_Allocator_List_Free* best_node = (hdsa_Allocator_List_Free*)0;
     ptrdiff_t padding = 0;
     ptrdiff_t smallest_difference = PTRDIFF_MAX;
-    ptrdiff_t total_node_size = 0;
+    ptrdiff_t node_size = 0;
 
     printf("head and node: %p\n", (void*)node);
 
@@ -566,19 +571,17 @@ static bool hdsa_allocator_list_find_best
     {
         padding = hdsa_common_padding_with_header((ptrdiff_t)node, (ptrdiff_t)sizeof(hdsa_Allocator_List_Used), alignment);
         ptrdiff_t required_space = size + padding;
-        total_node_size = (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + node->section_size;
+        node_size = (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + node->section_size;
 
         printf("padding: %lld\n", padding);
         printf("allocation_size + padding: %lld\n", required_space);
 
-        // if ((node->section_size >= required_space) && ((node->section_size - required_space) < smallest_difference))
-        if ((total_node_size >= required_space) && ((total_node_size - required_space) < smallest_difference))
+        if ((node_size >= required_space) && ((node_size - required_space) < smallest_difference))
         {
             best_node = node;
             printf("best_node: %p\n", (void*)best_node);
 
-            // smallest_difference = node->section_size - required_space;
-            smallest_difference = total_node_size - required_space;
+            smallest_difference = node_size - required_space;
             printf("smallest_difference: %lld\n", smallest_difference);
         }
 
@@ -591,6 +594,15 @@ static bool hdsa_allocator_list_find_best
 
         node = node->next;
         printf("node: %p\n", (void*)node);
+    }
+
+    if (!node)
+    {
+        error_out->code = HDSA_ERROR_ALLOCATION_NO_FITTING_NODE_FOUND;
+        HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, !node, __LINE__ - 3, "A node with the requiered size and alignment couldn't be found.");
+        *node_out = (hdsa_Allocator_List_Free*)0;
+
+        return false;
     }
 
     *padding_out = padding;
@@ -625,10 +637,9 @@ bool hdsa_allocator_list_allocate(hdsa_Allocator_List* const self, ptrdiff_t siz
      * remaining_node_space: Remaining space inside the node after the
      * allocation size and padding were substracted from it.
      */
-    ptrdiff_t padding = 0, alignment_padding = 0, required_space = 0, remaining_node_space = 0;
+    ptrdiff_t padding = 0, required_space = 0, remaining_node_space = 0;
     hdsa_Allocator_List_Free* node = (hdsa_Allocator_List_Free*)0;
     hdsa_Allocator_List_Free* previous_node = (hdsa_Allocator_List_Free*)0;
-    hdsa_Allocator_List_Used* used_ptr = (hdsa_Allocator_List_Used*)0;
 
     puts("************************** LIST ALLOCATION ****************************\n");
 
@@ -681,8 +692,6 @@ bool hdsa_allocator_list_allocate(hdsa_Allocator_List* const self, ptrdiff_t siz
     // Necessary to make the creation and alignment of footers and new nodes easier
     size = hdsa_common_round_to_multiple(size, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Footer));
     printf("size after: %lld\n", size);
-
-    // alignment = (alignment < (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free)) ? (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free) : alignment;
     alignment = (alignment < (ptrdiff_t)_Alignof(hdsa_Allocator_List_Used)) ? (ptrdiff_t)_Alignof(hdsa_Allocator_List_Used) : alignment;
     printf("alignment after: %lld\n", alignment);
 
@@ -690,6 +699,7 @@ bool hdsa_allocator_list_allocate(hdsa_Allocator_List* const self, ptrdiff_t siz
     {
         if (!hdsa_allocator_list_find_best(self, size, alignment, &padding, &node, error_out))
         {
+            *allocation_out = (void*)0;
             return false;
         }
     }
@@ -697,6 +707,7 @@ bool hdsa_allocator_list_allocate(hdsa_Allocator_List* const self, ptrdiff_t siz
     {
         if (!hdsa_allocator_list_find_first(self, size, alignment, &padding, &node, error_out))
         {
+            *allocation_out = (void*)0;
             return false;
         }
     }
@@ -727,7 +738,11 @@ bool hdsa_allocator_list_allocate(hdsa_Allocator_List* const self, ptrdiff_t siz
     }
 
     // Remove node from the free list of nodes
-    hdsa_allocator_list_free_list_remove(self, node);
+    if (!hdsa_allocator_list_free_list_remove(self, &node, error_out))
+    {
+        *allocation_out = (void*)0;
+        return false;
+    }
 
     /**
      * Set the used list header for the node being allocated, this header is located
@@ -739,7 +754,7 @@ bool hdsa_allocator_list_allocate(hdsa_Allocator_List* const self, ptrdiff_t siz
     hdsa_Allocator_List_Used* used_node = (hdsa_Allocator_List_Used*)((ptrdiff_t)node + padding - (ptrdiff_t)sizeof(hdsa_Allocator_List_Used));
     used_node->padding = padding;
     used_node->section_size = size;
-    hdsa_allocator_list_used_list_add(self, used_node);
+    hdsa_allocator_list_used_list_add(self, &used_node);
 
     // The usable address by the user starts right after the padding ends
     void* result = (void*)((ptrdiff_t)node + padding);
@@ -942,12 +957,6 @@ static void hdsa_allocator_list_coalescence(hdsa_Allocator_List* const self, hds
         return;
     }
 
-    if ((ptrdiff_t)free_node == (ptrdiff_t)self->head)
-    {
-        puts("free_node is the same as self->head, coalescence isn't possible.\n");
-        return;
-    }
-
     ptrdiff_t free_node_size = (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + free_node->section_size + (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer);
 
     hdsa_Allocator_List_Footer* free_footer = (hdsa_Allocator_List_Footer*)((ptrdiff_t)free_node + (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + free_node->section_size);
@@ -958,53 +967,56 @@ static void hdsa_allocator_list_coalescence(hdsa_Allocator_List* const self, hds
     hdsa_Allocator_List_Footer* footer_before = (hdsa_Allocator_List_Footer*)((ptrdiff_t)free_node - (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer));
     hdsa_Allocator_List_Free* node_before = (hdsa_Allocator_List_Free*)((ptrdiff_t)footer_before - footer_before->node_offset);
 
-    if (free_node->next)
+    /**
+     * head->previous is null, and this if statement covers the case of
+     * head being previous_node.
+     */
+    if ((ptrdiff_t)node_after == (ptrdiff_t)self->head)
     {
-        /**
-         * head->previous is null, and this if statement covers the case of
-         * head being previous_node.
-         */
-        if ((ptrdiff_t)node_after == (ptrdiff_t)self->head)
-        {
-            hdsa_allocator_list_merge_right(self, &free_node, &free_footer, &self->head, &footer_after);
-        }
-        else if (((ptrdiff_t)node_after == (ptrdiff_t)previous_node) && ((ptrdiff_t)previous_node != (ptrdiff_t)self->head))
-        {
-            hdsa_allocator_list_merge_right(self, &free_node, &free_footer, &previous_node, &footer_after);
-        }
-        else if (footer_after->is_free)
-        {
-            hdsa_allocator_list_merge_right(self, &free_node, &free_footer, &node_after, &footer_after);
-        }
+        hdsa_allocator_list_merge_right(self, &free_node, &free_footer, &self->head, &footer_after);
+    }
+    else if (((ptrdiff_t)node_after == (ptrdiff_t)previous_node) && ((ptrdiff_t)previous_node != (ptrdiff_t)self->head))
+    {
+        hdsa_allocator_list_merge_right(self, &free_node, &free_footer, &previous_node, &footer_after);
+    }
+    else if (footer_after->is_free)
+    {
+        hdsa_allocator_list_merge_right(self, &free_node, &free_footer, &node_after, &footer_after);
+    }
 
-        /**
-         * Just as before, this if statement covers the case of self-head being
-         * previous_node.
-         */
-        if ((ptrdiff_t)node_before == (ptrdiff_t)self->head)
-        {
-            hdsa_allocator_list_merge_left(self, &free_node, &free_footer, &self->head, &footer_before);
-        }
-        else if (((ptrdiff_t)node_before == (ptrdiff_t)previous_node) && ((ptrdiff_t)previous_node != (ptrdiff_t)self->head))
-        {
-            hdsa_allocator_list_merge_left(self, &free_node, &free_footer, &previous_node, &footer_before);
-        }
-        else if (footer_before->is_free)
-        {
-            hdsa_allocator_list_merge_left(self, &free_node, &free_footer, &node_before, &footer_before);
-        }
+    /**
+     * Just as before, this if statement covers the case of self-head being
+     * previous_node.
+     */
+    if ((ptrdiff_t)node_before == (ptrdiff_t)self->head)
+    {
+        hdsa_allocator_list_merge_left(self, &free_node, &free_footer, &self->head, &footer_before);
+    }
+    else if (((ptrdiff_t)node_before == (ptrdiff_t)previous_node) && ((ptrdiff_t)previous_node != (ptrdiff_t)self->head))
+    {
+        hdsa_allocator_list_merge_left(self, &free_node, &free_footer, &previous_node, &footer_before);
+    }
+    else if (footer_before->is_free)
+    {
+        hdsa_allocator_list_merge_left(self, &free_node, &free_footer, &node_before, &footer_before);
     }
 }
 
-void hdsa_allocator_list_deallocate(hdsa_Allocator_List* const self, const void* const ptr)
+/**
+ * @brief Deallocates a used node if the user-provided pointer is a used node.
+ * @param[in] self Allocator_List pointer, must not be null.
+ * @param[in] ptr Pointer to the pointer being used byt the user. Both ptr and
+ * *ptr must not be null. If the deallocation succeeds, then *ptr is set to
+ * null.
+ */
+void hdsa_allocator_list_deallocate(hdsa_Allocator_List* const self, void** const ptr)
 {
     puts("------------------------------ LIST DEALLOCATION ----------------------------------\n");
 
-    hdsa_Allocator_List_Used* used_node = (hdsa_Allocator_List_Used*)0;
+    hdsa_Allocator_List_Used* ptr_node = (hdsa_Allocator_List_Used*)0;
+    hdsa_Allocator_List_Used* temp_used = (hdsa_Allocator_List_Used*)0;
+    hdsa_Allocator_List_Used* temp_previous_used = (hdsa_Allocator_List_Used*)0;
     hdsa_Allocator_List_Free* free_node = (hdsa_Allocator_List_Free*)0;
-    hdsa_Allocator_List_Free* node = (hdsa_Allocator_List_Free*)0;
-
-    printf("allocation_amount before: %lld\n", self->allocation_amount);
 
     if (!ptr)
     {
@@ -1012,24 +1024,70 @@ void hdsa_allocator_list_deallocate(hdsa_Allocator_List* const self, const void*
         return;
     }
 
-    // Put the free_node where the header of ptr is
-    used_node = (hdsa_Allocator_List_Used*)((ptrdiff_t)ptr - (ptrdiff_t)sizeof(hdsa_Allocator_List_Used));
-    free_node = (hdsa_Allocator_List_Free*)((ptrdiff_t)used_node - (ptrdiff_t)used_node->padding);
-    free_node->section_size = used_node->section_size + used_node->padding;
-    free_node->next = (hdsa_Allocator_List_Free*)0;
+    if (!self->used_head)
+    {
+        puts("The allocator has 0 allocated nodes.\n");
+    }
 
-    printf("used_node: %p\n", (void*)used_node);
-    printf("free_node: %p\n", (void*)free_node);
-    printf("free_node->section_size: %lld\n", free_node->section_size);
-    printf("node/head: %p\n", (void*)node);
+    ptr_node = (hdsa_Allocator_List_Used*)((ptrdiff_t)ptr - (ptrdiff_t)sizeof(hdsa_Allocator_List_Used));
+    temp_previous_used = self->used_head;
+    temp_used = self->used_head->next;
+
+    // Find if ptr/used_node is really inside this allocator, and if so, where
+    if ((ptrdiff_t)temp_previous_used != (ptrdiff_t)ptr_node)
+    {
+        while (temp_used)
+        {
+            if ((ptrdiff_t)temp_used == (ptrdiff_t)ptr_node)
+            {
+                break;
+            }
+
+            temp_previous_used = temp_previous_used->next;
+            temp_used = temp_used->next;
+        }
+
+        if (!ptr_node)
+        {
+            return;
+        }
+    }
+    else
+    {
+        temp_used = temp_previous_used;
+        temp_previous_used = (hdsa_Allocator_List_Used*)0;
+    }
+
+    printf("allocation_amount before: %lld\n", self->allocation_amount);
+
+    // Put the free_node in the same node ptr is
+    free_node = (hdsa_Allocator_List_Free*)((ptrdiff_t)ptr - (ptrdiff_t)temp_used->padding);
+    free_node->section_size = (temp_used->section_size + temp_used->padding) - (ptrdiff_t)sizeof(hdsa_Allocator_List_Free);
+    free_node->next = (hdsa_Allocator_List_Free*)0;
+    free_node->previous = (hdsa_Allocator_List_Free*)0;
+
+    hdsa_Error dummy_error;
+    if (!hdsa_allocator_list_used_list_remove(self, &temp_previous_used, &temp_used, &dummy_error))
+    {
+        return;
+    }
 
     hdsa_allocator_list_free_list_add(self, free_node);
 
+    printf("temp_used: %p\n", (void*)temp_used);
+    printf("free_node: %p\n", (void*)free_node);
+    printf("free_node->section_size: %lld\n", free_node->section_size);
     printf("used_total before deallocation: %lld\n", self->used_total);
+
+    if (self->v_alloc.mode == HDSA_ALLOCATOR_VIRTUAL_STATIC)
+    {
+        self->v_alloc.last_block->used_block -= free_node->section_size;
+    }
 
     self->used_total -= free_node->section_size;
     self->allocation_amount -= 1;
     hdsa_allocator_list_coalescence(self, free_node);
+    *ptr = (void*)0;
 
     printf("allocation_amount after: %lld\n", self->allocation_amount);
     printf("used_total after deallocation: %lld\n", self->used_total);
