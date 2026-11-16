@@ -193,7 +193,7 @@ bool hdsa_allocator_stack_allocate(hdsa_Allocator_Stack* const self, ptrdiff_t s
             if (!self->v_alloc.buffer)
             {
                 error_out->code = HDSA_ERROR_ALLOCATION_NULL_BUFFER;
-                HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, !self->v_alloc.buffer, __LINE__ - 3, "The Allocator_Arena's buffer is null, the pointer inside allocation_out will be set to null.\n");
+                HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, !self->v_alloc.buffer, __LINE__ - 3, "The Allocator_Stack's buffer is null, the pointer inside allocation_out will be set to null.\n");
                 *allocation_out = (void*)0;
 
                 return false;
@@ -208,7 +208,7 @@ bool hdsa_allocator_stack_allocate(hdsa_Allocator_Stack* const self, ptrdiff_t s
 
             buffer_address = (ptrdiff_t)self->v_alloc.buffer;
             current_address = buffer_address + self->current_offset;
-            padding = hdsa_common_calc_padding_with_header(current_address, (ptrdiff_t)sizeof(hdsa_Allocator_Stack_Header), (ptrdiff_t)alignment);
+            padding = hdsa_common_padding_with_header(current_address, (ptrdiff_t)sizeof(hdsa_Allocator_Stack_Header), (ptrdiff_t)alignment);
 
             printf("padding from the previous allocation: %lld\n", padding);
 
@@ -255,7 +255,7 @@ bool hdsa_allocator_stack_allocate(hdsa_Allocator_Stack* const self, ptrdiff_t s
             /**
              * The maximum padding an address can get to be aligned is (alignment - 1)
              */
-            ptrdiff_t maximum_size =  (size + alignment - 1);
+            ptrdiff_t maximum_size = (size + alignment - 1);
 
             if (!self->v_alloc.last_block)
             {
@@ -288,7 +288,7 @@ bool hdsa_allocator_stack_allocate(hdsa_Allocator_Stack* const self, ptrdiff_t s
 
             buffer_address = (ptrdiff_t)self->v_alloc.last_block;
             current_address = buffer_address + self->current_offset;
-            padding = hdsa_common_calc_padding_with_header(current_address, (ptrdiff_t)sizeof(hdsa_Allocator_Stack_Header), (ptrdiff_t)alignment);
+            padding = hdsa_common_padding_with_header(current_address, (ptrdiff_t)sizeof(hdsa_Allocator_Stack_Header), (ptrdiff_t)alignment);
 
             printf("padding from the previous allocation: %lld\n", padding);
 
@@ -326,7 +326,7 @@ bool hdsa_allocator_stack_allocate(hdsa_Allocator_Stack* const self, ptrdiff_t s
 
                     buffer_address = (ptrdiff_t)self->v_alloc.last_block; // Given that the block is the actual buffer, that's the address to give to start_address
                     current_address = buffer_address + self->current_offset;
-                    padding = hdsa_common_calc_padding_with_header(current_address, (ptrdiff_t)sizeof(hdsa_Allocator_Stack_Header), (ptrdiff_t)alignment);
+                    padding = hdsa_common_padding_with_header(current_address, (ptrdiff_t)sizeof(hdsa_Allocator_Stack_Header), (ptrdiff_t)alignment);
 
                     printf("padding from the previous allocation: %lld\n", padding);
                 }

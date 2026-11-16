@@ -38,6 +38,7 @@ typedef struct hdsa_Allocator_List
     hdsa_Allocator_List_Free* head;
     hdsa_Allocator_List_Used* used_head;
     hdsa_Allocator_Placement_Policy policy;
+    ptrdiff_t allocated_offset;
     ptrdiff_t allocation_amount;
     ptrdiff_t used_total;
 } hdsa_Allocator_List;
@@ -127,6 +128,23 @@ bool hdsa_allocator_list_init_static
     hdsa_Allocator_Placement_Policy policy,
     hdsa_Error* const error_out
 );
+
+/**
+ * @brief Allocates within a free node according to the Placement_Policy in
+ * use.
+ * @param[in] self Allocator_List pointer, must not be null.
+ * @param[in] size Size in bytes required by the user, must be at least 1.
+ * It will be rounded up to a multiple of the alignment of
+ * hdsa_Allocator_List_Footer.
+ * @param[in] alignment Alignment in bytes required by the user, must be at
+ * least 1. It will be rounded up to the alignment of
+ * hdsa_Allocator_List_Footer.
+ * @param[out] allocation_out Output pointer for the allocation, must not be
+ * null.
+ * @param[in] error_out Pointer to the error struct, must not be null.
+ * @returns True if the allocation succeeds, false otherwise.
+ */
+bool hdsa_allocator_list_allocate(hdsa_Allocator_List* const self, ptrdiff_t size, ptrdiff_t alignment, void** const allocation_out, hdsa_Error* const error_out);
 
 
 #endif // HDSA_ALLOCATOR_FREE_LIST_H

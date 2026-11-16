@@ -50,7 +50,7 @@ set(SOURCE_FILES
     src/c/virtual_alloc.c
     src/c/arena_alloc.c
     src/c/stack_alloc.c
-    src/c/free_list_alloc.c
+    src/c/list_alloc.c
     src/c/dynamic_array.c
     src/hdsa.c)
 
