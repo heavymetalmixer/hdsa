@@ -8,8 +8,8 @@
 #include "virtual_alloc.h"
 
 /**
- * @brief Memory resource for linear allocators, AKA Arena allocators,
- * one of the the most simple kinds of allocators and also the fastest one.
+ * @brief An arena allocator, AKA linear allocator, is one of the the most
+ * simple kinds of allocators and also the fastest one.
  *
  * Allocations are made contiguously while adding padding for alignment
  * concerns, by bumping up the offset that marks the end of the allocated space

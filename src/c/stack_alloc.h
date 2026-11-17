@@ -8,8 +8,8 @@
 #include "virtual_alloc.h"
 
 /**
- * @brief Memory resource for stack allocators, rather simple and fast
- * allocators, just in second place after arena allocators in those aspects.
+ * @brief A stack allocator is rather simple and fast, just in second place
+ * after arena allocators in those aspects.
  *
  * Allocations are made kinda contiguously while adding padding for alignment
  * concerns and a header inside that padding, making the padding mandatory and

@@ -32,6 +32,86 @@ typedef enum hdsa_Allocator_Placement_Policy
     HDSA_ALLOCATOR_FIND_BEST
 } hdsa_Allocator_Placement_Policy;
 
+/**
+ * @brief List allocator is slower and more memory-hungry than the arena
+ * and stack allocators (and it causes more memory fragmentation), but it
+ * allows the user to do arbitraty-sized allocations, and also individual
+ * deallocations regardless of where each allocation is in the buffer, unlike
+ * those 2.
+ *
+ * This list allocator mostly takes from "free list allocators", a kind of
+ * allocator than uses a singly or doubly linked list of "free nodes" (doubly
+ * in this case), nodes that aren't being used by the user just yet, but it
+ * wasn't named that way because it also manages a singly linked list of "used
+ * nodes" to make sure the pointer to deallocate by the user is an actual
+ * allocation inside the buffer.
+ *
+ * The free node list, or just "free list" occupies the whole buffer with a
+ * single free node, and as allocations are done free dones are split into 2
+ * smaller ones to make subsequent allocations possible (nodes are NOT
+ * contiguous in memory most of the time), and when a node is used for an
+ * allocation it turns into a node of the "used list", node that starts
+ * with padding followed by the usable memory by the user with an aligned
+ * address according to the requested alignment (but it's rounded up to the
+ * alignment of hdsa_Allocator_List_Footer).
+ *
+ * A free node has a hdsa_Allocator_List_Free header at the beginning and
+ * a hdsa_Allocator_List_Footer at the end. A used has a
+ * hdsa_Allocator_List_Used header (most of the time not in the same address
+ * as the hdsa_Allocator_List_Free header because of the padding) and a
+ * hdsa_Allocator_List_Footer. Allocation sizes are also rounded up to a
+ * multiple of the alignment of hdsa_Allocator_List_Footer.
+ *
+ * It has 2 modes that change the arena's behavior: External and Static.
+ *
+ * 1) External sets a user-provided buffer that doesn't grow.
+ *
+ * 2) Static uses the internal Allocator Virtual to do a virtual memory
+ * allocation and create a "Memory Block" with it. The maximum size this block
+ * will have is called "reserved memory", and the current usable memory in the
+ * block (that can grow as long as it doesn't go beyond reserved) is called
+ * "committed memory". Allocations that need to go above the current committed
+ * memory result in the Stack asking the OS for more committed memory, growing
+ * the committed memory, no need to do a reallocation/resizing of the existing
+ * data in the block. If an allocation that needs more committed memory goes
+ * beyond the reserved memory an error is given back to the user.
+ *
+ * Just like the other allocators in this library can also reset to allocate
+ * from the beginning without getting rid of all the available memory.
+ *
+ * "v_alloc" is the internal Allocator_Virtual that performs the virtual memory
+ * allocations.
+ *
+ * "head" Head of the free list of nodes. The Allocator_List is initialized
+ * with a single free node for head, and it's next and previous nodes are null.
+ * If it's null it means the allocator has no nodes at all, or all the free
+ * already turned into used nodes.
+ *
+ * "used_head" Head of the used list of nodes. the Allocator_List is
+ * initialized with used_head being null. If it's null it means all nodes are
+ * free nodes or the allocator has no nodes at all.
+ *
+ * "policy" Placement policy to use when trying to find a suitable free node
+ * for the allocation requirements. It doesn't change when the allocator is
+ * reset.
+ *
+ * "allocated_offset" keeps track of how much of the buffer is already in use
+ * by both lists, it's necessary to make new free nodes in buffer spaces that
+ * has no nodes at all (mostly for Static Mode when committing more memory).
+ *
+ * "allocation_amount" saves how many allocations the user has requested (plus
+ * 1 in Static mode for the block's header), not the virtual committed nor
+ * reserved memory. The "allocations" is also the amount of used nodes.
+ *
+ * "used_total" saves the sum of all the used memory the buffer/memory block,
+ * the sum of everything inside used nodes, and the header and footer from free
+ * nodes (and the size of the Memory Block for Static mode). In Static mode
+ * v_alloc.last_block->used_block has the same number.
+ *
+ * "v_alloc.committed_total" is used as the v_alloc.buffer's (External mode) or
+ * sum of all blocks' "length" or "capacity" (Static). Also, in External mode
+ * "v_alloc.reserved_total" contains the same number.
+ */
 typedef struct hdsa_Allocator_List
 {
     hdsa_Allocator_Virtual v_alloc; // v_alloc.committed_total is used as the buffer length
@@ -49,9 +129,11 @@ typedef struct hdsa_Allocator_List
  * "section_size" is the available space after the header, the space the user
  * can actually use.
  *
- * "previous" The previous node in the free list.
+ * "previous" The previous node in the free list. Only "head" has previous as
+ * null.
  *
- * "next" The next node in the free list.
+ * "next" The next node in the free list. Only the last node in the free list
+ * has next as null.
  */
 typedef struct hdsa_Allocator_List_Free
 {
@@ -61,15 +143,16 @@ typedef struct hdsa_Allocator_List_Free
 } hdsa_Allocator_List_Free;
 
 /**
- * @brief Header for the nodes currently used for the user.
+ * @brief Header for the "used nodes".
  *
- * "section_size" exactly the same as in hdsa_Allocator_List_Free.
+ * "section_size" it's smaller or equal to section_size in the free node.
  *
  * "padding" is how many bytes are needed from the beginning of the header to
  * align the address that will be delivered to the user. Its minimum size will
  * always be the size of the header.
  *
- * "next" The next node in the used list.
+ * "next" The next node in the used list. Only the last node in the used list
+ * has next as null.
  */
 typedef struct hdsa_Allocator_List_Used
 {
@@ -80,11 +163,12 @@ typedef struct hdsa_Allocator_List_Used
 
 /**
  * @brief Set after the section, at the end of the node. Necessary for
- * coalescence with node close free nodes.
+ * coalescence/merging of free nodes that are next to each other in memory to
+ * reduce memory fragmentation (it has nothing to do with previous and next).
  *
  * "node_offset" Distance the beginning of the node to the footer.
  *
- * "is_free" true if the node is free, false otherwise.
+ * "is_free" true if the node is free, false if it's used.
  */
 typedef struct hdsa_Allocator_List_Footer
 {
@@ -145,6 +229,24 @@ bool hdsa_allocator_list_init_static
  * @returns True if the allocation succeeds, false otherwise.
  */
 bool hdsa_allocator_list_allocate(hdsa_Allocator_List* const self, ptrdiff_t size, ptrdiff_t alignment, void** const allocation_out, hdsa_Error* const error_out);
+
+/**
+ * @brief Deallocates a used node if the user-provided pointer is a used node.
+ * @param[in] self Allocator_List pointer, must not be null.
+ * @param[in] ptr Pointer to the pointer being used byt the user. Both ptr and
+ * *ptr must not be null. If the deallocation succeeds, then *ptr is set to
+ * null.
+ */
+void hdsa_allocator_list_deallocate(hdsa_Allocator_List* const self, void** const ptr);
+
+/**
+ * @brief In External mode it resets everything to 0 except
+ * self->v_alloc.committed total, the placement policy and the buffer/memory
+ * block. Then self->head is set to a node that covers the entire buffer (or
+ * the rest of the memory block after its header in Static Mode).
+ * @param[in] self Allocator_List pointer, must not be null.
+ */
+void hdsa_allocator_list_reset(hdsa_Allocator_List* const self);
 
 
 #endif // HDSA_ALLOCATOR_FREE_LIST_H
