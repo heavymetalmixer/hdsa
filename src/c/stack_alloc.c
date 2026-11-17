@@ -140,7 +140,7 @@ bool hdsa_allocator_stack_init_dynamic(hdsa_Allocator_Stack* const self, ptrdiff
  */
 ptrdiff_t hdsa_allocator_stack_remaining_storage(const hdsa_Allocator_Stack* const self)
 {
-    HDSA_BASIC_ASSERT((self), "The Allocator_Arena pointer is null.\n");
+    HDSA_BASIC_ASSERT((self), "The Allocator_Stack pointer is null.\n");
 
     if ((self->v_alloc.mode == HDSA_ALLOCATOR_VIRTUAL_STATIC) || (self->v_alloc.mode == HDSA_ALLOCATOR_VIRTUAL_DYNAMIC))
     {
@@ -215,7 +215,7 @@ bool hdsa_allocator_stack_allocate(hdsa_Allocator_Stack* const self, ptrdiff_t s
             if ((self->current_offset + padding + size) > self->v_alloc.committed_total)
             {
                 error_out->code = HDSA_ERROR_ALLOCATION_NOT_ENOUGH_MEMORY;
-                HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, (current_offset + size) > self->buffer_length, __LINE__ - 3, "The Allocator_Arena can't fit the new allocation in the buffer.");
+                HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, (current_offset + size) > self->buffer_length, __LINE__ - 3, "The Allocator_Stack can't fit the new allocation in the buffer.");
                 *allocation_out = (void*)0;
 
                 return false;
@@ -368,7 +368,7 @@ bool hdsa_allocator_stack_allocate(hdsa_Allocator_Stack* const self, ptrdiff_t s
     }
 
     error_out->code = HDSA_ERROR_ALLOCATION_WRONG_MODE;
-    HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, Wrong mode integer, __LINE__ - 3, "The Allocator_Arena mode isn't External, Static nor Dynamic.");
+    HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, Wrong mode integer, __LINE__ - 3, "The Allocator_Stack mode isn't External, Static nor Dynamic.");
     *allocation_out = (void*)0;
 
     return false;
@@ -513,7 +513,7 @@ void hdsa_allocator_stack_deallocate(hdsa_Allocator_Stack* const self)
  *
  * If there are no memory blocks for Static and Dynamic modes, or if the
  * allocator is in External mode all data members are set to 0/null.
- * @param[in] self Allocator_Arena pointer, must not be null.
+ * @param[in] self Allocator_Stack pointer, must not be null.
  */
 void hdsa_allocator_stack_reset(hdsa_Allocator_Stack* const self)
 {
@@ -664,7 +664,7 @@ bool hdsa_allocator_stack_resize
                 self->v_alloc.last_block = (hdsa_Allocator_Memory_Block*)0;
 
                 error_out->code = HDSA_ERROR_ALLOCATION_NULL_BUFFER;
-                HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, !self->v_alloc.buffer, __LINE__ - 12, "While in External mode the Allocator_Arena has a null buffer when trying to resize an allocation.");
+                HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, !self->v_alloc.buffer, __LINE__ - 12, "While in External mode the Allocator_Stack has a null buffer when trying to resize an allocation.");
 
                 *allocation_out = (void*)0;
                 return false;
@@ -695,7 +695,7 @@ bool hdsa_allocator_stack_resize
 
                 /**
                  * If old_memory isn't null and old_size is at least 1 copy the data from
-                 * old_memory to the new allocation in the arena.
+                 * old_memory to the new allocation in the stack.
                  */
                 if (old_memory && (old_size > 0))
                 {
@@ -714,7 +714,7 @@ bool hdsa_allocator_stack_resize
             if ((start_address + new_size) > end_address)
             {
                 error_out->code = HDSA_ERROR_ALLOCATION_NOT_ENOUGH_MEMORY;
-                HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, Not enough space, __LINE__ - 1, "The buffer of Allocator_Arena doesn't have enough space for new allocation size.");
+                HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, Not enough space, __LINE__ - 1, "The buffer of Allocator_Stack doesn't have enough space for new allocation size.");
 
                 return false;
             }
@@ -803,7 +803,7 @@ bool hdsa_allocator_stack_resize
 
                 /**
                  * If old_memory isn't null and old_size is at least 1 copy the data from
-                 * old_memory to the new allocation in the arena.
+                 * old_memory to the new allocation in the stack.
                  */
                 if (old_memory && (old_size > 0))
                 {
@@ -812,7 +812,7 @@ bool hdsa_allocator_stack_resize
                     memcpy(new_memory, old_memory, (size_t)copy_size);
                 }
 
-                // Here should go the deallocation of old_memory if this wasn't an Arena
+                // Here should go the deallocation of old_memory if this wasn't an Stack
 
                 *allocation_out = new_memory;
                 error_out->code = HDSA_ERROR_SUCCESS;
@@ -839,7 +839,7 @@ bool hdsa_allocator_stack_resize
     }
 
     error_out->code = HDSA_ERROR_ALLOCATION_WRONG_MODE;
-    HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, Wrong mode integer, __LINE__ - 3, "The Allocator_Arena mode isn't External, Static nor Dynamic.");
+    HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, Wrong mode integer, __LINE__ - 3, "The Allocator_Stack mode isn't External, Static nor Dynamic.");
     *allocation_out = (void*)0;
 
     return false;
