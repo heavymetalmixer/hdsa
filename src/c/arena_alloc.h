@@ -221,7 +221,7 @@ void hdsa_allocator_arena_give_back_memory(hdsa_Allocator_Arena* const self);
 bool hdsa_allocator_arena_resize
 (
     hdsa_Allocator_Arena* const self,
-    void* const old_memory,
+    void** const old_memory,
     ptrdiff_t old_size,
     ptrdiff_t new_size,
     ptrdiff_t new_alignment,
@@ -238,7 +238,7 @@ bool hdsa_allocator_arena_generic_function
 (
     void* const allocator,
     hdsa_Allocator_Behavior alloc_func,
-    void* old_allocation,
+    void** old_allocation,
     ptrdiff_t old_size,
     ptrdiff_t new_size,
     ptrdiff_t new_alignment,

@@ -419,9 +419,9 @@ void hdsa_allocator_arena_give_back_memory(hdsa_Allocator_Arena* const self)
  * 2) On the other hand, if it ends up being the latest allocation then only
  * resize the latest allocation, no data copying is done.
  * @param[in] self The Allocator_Arena pointer, must not be null.
- * @param[in] old_memory The existing allocation pointer. It can be null or
- * even not part of the same buffer. If it's null only the new allocation is
- * done.
+ * @param[in] old_memory The existing allocation pointer. *old_memory can be
+ * null or even not part of the same buffer. If it's null only the new
+ * allocation is done.
  * @param[in] old_size Size of the existing allocation, must not be negative.
  * If both sizes are the same nothing is done.
  * @param[in] new_size New size for the allocation, must not be negative.
@@ -446,7 +446,7 @@ void hdsa_allocator_arena_give_back_memory(hdsa_Allocator_Arena* const self)
 bool hdsa_allocator_arena_resize
 (
     hdsa_Allocator_Arena* const self,
-    void* const old_memory,
+    void** const old_memory,
     ptrdiff_t old_size,
     ptrdiff_t new_size,
     ptrdiff_t new_alignment,
@@ -457,6 +457,7 @@ bool hdsa_allocator_arena_resize
     HDSA_BASIC_ASSERT((error_out), "The error struct must not be null.\n");
     HDSA_BASIC_ASSERT((self), "The Allocator_Arena pointer is null.\n");
     HDSA_BASIC_ASSERT((allocation_out), "The allocation_out pointer is null.\n");
+    HDSA_BASIC_ASSERT((old_memory), "The old_memory pointer is null.\n");
     HDSA_BASIC_ASSERT((self->v_alloc.committed_total > 0), "The committed_total is 0 or negative.\n");
     HDSA_BASIC_ASSERT((old_size > -1), "The size for the existing allocation can't be negative.\n");
     HDSA_BASIC_ASSERT((new_size > -1), "The size for the resized/new allocation can't be negative.\n");
@@ -475,7 +476,7 @@ bool hdsa_allocator_arena_resize
             if (old_size == new_size)
             {
                 error_out->code = HDSA_ERROR_SUCCESS;
-                *allocation_out = old_memory;
+                *allocation_out = *old_memory;
 
                 return true;
             }
@@ -486,7 +487,7 @@ bool hdsa_allocator_arena_resize
              */
             if (new_size == 0)
             {
-                *allocation_out = old_memory;
+                *allocation_out = *old_memory;
                 error_out->code = HDSA_ERROR_SUCCESS;
 
                 return true;
@@ -523,7 +524,7 @@ bool hdsa_allocator_arena_resize
              */
             if
             (
-                ((ptrdiff_t)old_memory != previous_address) ||
+                ((ptrdiff_t)*old_memory != previous_address) ||
                 (!hdsa_common_is_aligned((void*)previous_address, real_new_alignment))
             )
             {
@@ -537,11 +538,11 @@ bool hdsa_allocator_arena_resize
                  * If old_memory isn't null and old_size is at least 1 copy the data from
                  * old_memory to the new allocation in the arena.
                  */
-                if (old_memory && (old_size > 0))
+                if (*old_memory && (old_size > 0))
                 {
                     // Choose the smallest of the 2 sizes and copy the data from old_memory to new_memory
                     ptrdiff_t copy_size = (old_size < new_size) ? old_size : new_size;
-                    memcpy(new_memory, old_memory, (size_t)copy_size);
+                    memcpy(new_memory, *old_memory, (size_t)copy_size);
                 }
 
                 *allocation_out = new_memory;
@@ -564,7 +565,7 @@ bool hdsa_allocator_arena_resize
             self->used_total += (self->current_offset - self->previous_offset); // Adding the new allocation's size to used_total
 
             printf("Resizing the latest allocation. current_offset is now: %lld\n", self->current_offset);
-            *allocation_out = old_memory;
+            *allocation_out = *old_memory;
             error_out->code = HDSA_ERROR_SUCCESS;
 
             return true;
@@ -577,7 +578,7 @@ bool hdsa_allocator_arena_resize
             if (old_size == new_size)
             {
                 error_out->code = HDSA_ERROR_SUCCESS;
-                *allocation_out = old_memory;
+                *allocation_out = *old_memory;
 
                 return true;
             }
@@ -588,7 +589,7 @@ bool hdsa_allocator_arena_resize
              */
             if (new_size == 0)
             {
-                *allocation_out = old_memory;
+                *allocation_out = *old_memory;
                 error_out->code = HDSA_ERROR_SUCCESS;
 
                 return true;
@@ -629,7 +630,7 @@ bool hdsa_allocator_arena_resize
              */
             if
             (
-                ((ptrdiff_t)old_memory != previous_address) ||
+                ((ptrdiff_t)*old_memory != previous_address) ||
                 (!hdsa_common_is_aligned((void*)previous_address, real_new_alignment)) ||
                 ((previous_address + new_size) > end_address)
             )
@@ -644,11 +645,11 @@ bool hdsa_allocator_arena_resize
                  * If old_memory isn't null and old_size is at least 1 copy the data from
                  * old_memory to the new allocation in the arena.
                  */
-                if (old_memory && (old_size > 0))
+                if (*old_memory && (old_size > 0))
                 {
                     // Choose the smallest of the 2 sizes and copy the data from old_memory to new_memory
                     ptrdiff_t copy_size = (old_size < new_size) ? old_size : new_size;
-                    memcpy(new_memory, old_memory, (size_t)copy_size);
+                    memcpy(new_memory, *old_memory, (size_t)copy_size);
                 }
 
                 // Here should go the deallocation of old_memory if this wasn't an Arena
@@ -668,7 +669,7 @@ bool hdsa_allocator_arena_resize
             self->v_alloc.last_block->used_block += (self->current_offset - self->previous_offset);
 
             printf("Resizing the latest allocation. current_offset is now: %lld\n", self->current_offset);
-            *allocation_out = old_memory;
+            *allocation_out = *old_memory;
             error_out->code = HDSA_ERROR_SUCCESS;
 
             return true;
@@ -691,7 +692,7 @@ bool hdsa_allocator_arena_generic_function
 (
     void* const allocator,
     hdsa_Allocator_Behavior alloc_func,
-    void* old_allocation,
+    void** old_allocation,
     ptrdiff_t old_size,
     ptrdiff_t new_size,
     ptrdiff_t new_alignment,

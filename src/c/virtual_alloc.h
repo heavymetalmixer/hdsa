@@ -347,7 +347,7 @@ bool hdsa_allocator_virtual_generic_function
 (
     void* const allocator,
     hdsa_Allocator_Behavior alloc_func,
-    void* old_allocation,
+    void** old_allocation,
     ptrdiff_t old_size,
     ptrdiff_t new_size,
     ptrdiff_t new_alignment,

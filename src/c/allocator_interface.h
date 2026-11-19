@@ -57,7 +57,7 @@ typedef struct hdsa_Allocator_Interface
     (
         void* const allocator,
         hdsa_Allocator_Behavior alloc_type,
-        void* old_allocation,
+        void** old_allocation,
         ptrdiff_t old_size,
         ptrdiff_t new_size,
         ptrdiff_t new_alignment,
