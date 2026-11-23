@@ -237,7 +237,7 @@ bool hdsa_allocator_list_allocate(hdsa_Allocator_List* const self, ptrdiff_t siz
  * *ptr must not be null. If the deallocation succeeds, then *ptr is set to
  * null.
  */
-void hdsa_allocator_list_deallocate(hdsa_Allocator_List* const self, void** const ptr);
+void hdsa_allocator_list_deallocate(hdsa_Allocator_List* const self, const void* const ptr);
 
 /**
  * @brief In External mode it resets everything to 0 except
@@ -247,6 +247,90 @@ void hdsa_allocator_list_deallocate(hdsa_Allocator_List* const self, void** cons
  * @param[in] self Allocator_List pointer, must not be null.
  */
 void hdsa_allocator_list_reset(hdsa_Allocator_List* const self);
+
+/**
+ * @brief It deallocates all the memory blocks and sets all the data in the
+ * allocator and "v_alloc" to 0/null.
+ *
+ * For External mode the pointer to the buffer is set to null.
+ * @param[in] self The Allocator_Stack pointer, must not be null.
+ */
+void hdsa_allocator_list_give_back_memory(hdsa_Allocator_List* const self);
+
+/**
+ * @brief Usually it does a new allocation, copies the data from the existing
+ * one and does a deallocation, but it's more complicated than that:
+ *
+ * 1) If "old_memory" is null or "old_size" is 0 the new allocation is done but
+ * there's no data copying.
+ *
+ * 2) On the other hand, if it ends up being the latest allocation then only
+ * resize the latest allocation, no data copying is done.
+ * @param[in] self The Allocator_List pointer, must not be null.
+ * @param[in] old_memory The existing allocation pointer. *old_memory can be
+ * null or even not part of the same buffer. If it's null only the new
+ * allocation is done.
+ * @param[in] old_size Size of the existing allocation, must not be negative.
+ * It will be rounded up to a multiple of hdsa_Allocator_List_Footer's
+ * alignment. If both sizes after the rounding end up being the same,
+ * this function does nothing and allocation_out will point to old_memory.
+ * @param[in] new_size New size for the allocation, must not be negative.
+ * If it's 0 old_memory is deallocated and both old_memory and the pointer
+ * allocation_out is pointing to are set to null. If it's at least 1 it will
+ * be rounded up to a multiple of hdsa_Allocator_List_Footer's alignment.
+ * @param[in] new_alignment Alignment for the new allocation or resizing, must
+ * be at least 1, and it will be rounded up to hdsa_Allocator_List_Footer's
+ * alignment.
+ * @param[out] allocation_out Output pointer to pointer for the allocation,
+ * must not be null.
+ *
+ * If the allocation fails, the pointer allocation_out is pointing to is set to
+ * null. If both sizes and aligments are the same (old_memory has its own
+ * alignment), or new_size is 0 then allocation_out will point to old_memory.
+ *
+ * Unlike resize in other allocators in this library, this version always does
+ * a copy of the data to a different node, regardless if *old_memory is the
+ * latest allocation or not.
+ * @param[out] error_out Pointer to the error struct, must not be null;
+ * @returns True if resizing succeeds in any of its variants, false otherwise.
+ */
+bool hdsa_allocator_list_resize
+(
+    hdsa_Allocator_List* const self,
+    void** const old_memory,
+    ptrdiff_t old_size,
+    ptrdiff_t new_size,
+    ptrdiff_t new_alignment,
+    void** const allocation_out,
+    hdsa_Error* const error_out
+);
+
+/**
+ * @brief Generic wrapper function for the Allocator_Interface. It has all the
+ * parameters any allocation function could need, but depending on the
+ * Allocation_Type value some of the parameters will be ignored.
+ */
+bool hdsa_allocator_list_generic_function
+(
+    void* const allocator,
+    hdsa_Allocator_Behavior alloc_func,
+    void** old_allocation,
+    ptrdiff_t old_size,
+    ptrdiff_t new_size,
+    ptrdiff_t new_alignment,
+    void** const allocation_out,
+    hdsa_Error* const error_out
+);
+
+/**
+ * @brief It creates a new Allocator_Interface struct from an Allocator_List
+ * pointer.
+ * @param[in] self Pointer to the Allocator_List, must not be null.
+ * @returns A copy to a new Allocator_Interface struct with self as the
+ * "allocator", and hdsa_allocator_list_generic_function as the
+ * "generic_alloc_function".
+ */
+hdsa_Allocator_Interface hdsa_allocator_list_create_interface(const hdsa_Allocator_List* const self);
 
 
 #endif // HDSA_ALLOCATOR_FREE_LIST_H
