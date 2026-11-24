@@ -125,6 +125,7 @@ static void hdsa_allocator_list_used_list_remove(hdsa_Allocator_List* const self
         HDSA_BASIC_ASSERT(((ptrdiff_t)(*delete_node) == (ptrdiff_t)self->used_head), "*previous_node is null, but *delete_node and self->head aren't the same node.\n");
 
         self->used_head = self->used_head->next;
+        (*delete_node)->next = (hdsa_Allocator_List_Used*)0;
         return;
     }
 
@@ -135,26 +136,6 @@ static void hdsa_allocator_list_used_list_remove(hdsa_Allocator_List* const self
     (*delete_node)->next = (hdsa_Allocator_List_Used*)0;
 
     return;
-}
-
-/**
- * @brief It creates a properly aligned hdsa_Allocator_List_Footer for a new
- * free node without it. It may reduce the node's section size further than
- * just the size of hdsa_Allocator_List_Footer.
- * @param[in] node Free node to set the footer on.
- * @param[in] new_section_size section_size of node. It's called "new"
- * because a smaller one can be passed to set a footer in the middle of the
- * old section_size to create a new free node afterwards in
- * hdsa_allocator_list_create_free_node().
- * @param[out] new_footer_out Output pointer for the resulting footer, must
- * not be null.
- */
-static void hdsa_allocator_list_create_footer(hdsa_Allocator_List_Free* const * const node, ptrdiff_t new_section_size, hdsa_Allocator_List_Footer** const new_footer_out)
-{
-    hdsa_Allocator_List_Footer* footer = (hdsa_Allocator_List_Footer*)((ptrdiff_t)*node + (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + new_section_size);
-    footer->node_offset = (ptrdiff_t)footer - (ptrdiff_t)*node;
-    footer->is_free = true;
-    *new_footer_out = footer;
 }
 
 /**
@@ -190,10 +171,10 @@ static bool hdsa_allocator_list_create_free_node
     if (!(*old_node))
     {
         ptrdiff_t remaining_buffer_space = self->v_alloc.committed_total - self->allocated_offset;
-        remaining_buffer_space = hdsa_common_round_to_multiple(remaining_buffer_space, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Footer));
-        remaining_buffer_space = (remaining_buffer_space > (self->v_alloc.committed_total - self->allocated_offset)) ? remaining_buffer_space - (ptrdiff_t)_Alignof(hdsa_Allocator_List_Footer) : remaining_buffer_space;
+        remaining_buffer_space = hdsa_common_round_to_multiple(remaining_buffer_space, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
+        remaining_buffer_space = (remaining_buffer_space > (self->v_alloc.committed_total - self->allocated_offset)) ? remaining_buffer_space - (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free) : remaining_buffer_space;
 
-        if (remaining_buffer_space < ((ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + (ptrdiff_t)_Alignof(hdsa_Allocator_List_Footer) + (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer)))
+        if (remaining_buffer_space < ((ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free)))
         {
             error_out->code = HDSA_ERROR_ALLOCATION_NOT_ENOUGH_MEMORY;
             HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, !node, __LINE__ - 3, "There's not enough extra space in the last_block/buffer to create a new free node.");
@@ -209,20 +190,17 @@ static bool hdsa_allocator_list_create_free_node
 
             self->allocated_offset += (self->v_alloc.mode == HDSA_ALLOCATOR_VIRTUAL_STATIC) ? ((ptrdiff_t)new_node - ((ptrdiff_t)self->v_alloc.last_block + self->allocated_offset)) : ((ptrdiff_t)new_node - (ptrdiff_t)self->v_alloc.buffer);
 
-            new_node->section_size = remaining_buffer_space - (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) - (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer);
+            new_node->section_size = remaining_buffer_space - (ptrdiff_t)sizeof(hdsa_Allocator_List_Free);
             hdsa_allocator_list_free_list_add(self, new_node);
-
-            hdsa_Allocator_List_Footer* new_footer = (hdsa_Allocator_List_Footer*)0;
-            hdsa_allocator_list_create_footer(&new_node, new_node->section_size, &new_footer);
 
             if (self->v_alloc.mode == HDSA_ALLOCATOR_VIRTUAL_STATIC)
             {
                 self->used_total = self->v_alloc.last_block->used_block;
-                self->v_alloc.last_block->used_block += (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer);
+                self->v_alloc.last_block->used_block += (ptrdiff_t)sizeof(hdsa_Allocator_List_Free);
             }
 
-            self->allocated_offset += (((ptrdiff_t)new_footer + (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer)) - (ptrdiff_t)new_node);
-            self->used_total += (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer);
+            self->allocated_offset += (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + new_node->section_size;
+            self->used_total += (ptrdiff_t)sizeof(hdsa_Allocator_List_Free);
 
             *node_out = new_node;
             error_out->code = HDSA_ERROR_SUCCESS;
@@ -233,19 +211,16 @@ static bool hdsa_allocator_list_create_free_node
         // Case: Create a new free node from extra space in memory
         hdsa_Allocator_List_Free* new_node = (self->v_alloc.mode == HDSA_ALLOCATOR_VIRTUAL_STATIC) ? (hdsa_Allocator_List_Free*)((ptrdiff_t)self->v_alloc.last_block + self->allocated_offset) : (hdsa_Allocator_List_Free*)((ptrdiff_t)self->v_alloc.buffer + self->allocated_offset);
 
-        new_node->section_size = remaining_buffer_space - (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) - (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer);
+        new_node->section_size = remaining_buffer_space - (ptrdiff_t)sizeof(hdsa_Allocator_List_Free);
         hdsa_allocator_list_free_list_add(self, new_node);
-
-        hdsa_Allocator_List_Footer* new_footer = (hdsa_Allocator_List_Footer*)0;
-        hdsa_allocator_list_create_footer(&new_node, new_node->section_size, &new_footer);
 
         if (self->v_alloc.mode == HDSA_ALLOCATOR_VIRTUAL_STATIC)
         {
-            self->v_alloc.last_block->used_block += (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer);
+            self->v_alloc.last_block->used_block += (ptrdiff_t)sizeof(hdsa_Allocator_List_Free);
         }
 
-        self->allocated_offset += (((ptrdiff_t)new_footer + (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer)) - (ptrdiff_t)new_node);
-        self->used_total += (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer);
+        self->allocated_offset += (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + new_node->section_size;
+        self->used_total += (ptrdiff_t)sizeof(hdsa_Allocator_List_Free);
 
         *node_out = new_node;
         error_out->code = HDSA_ERROR_SUCCESS;
@@ -253,11 +228,8 @@ static bool hdsa_allocator_list_create_free_node
         return true;
     }
 
-    // Case: Create a new free node from an existing one
-    ptrdiff_t smaller_section_size = required_space - (ptrdiff_t)sizeof(hdsa_Allocator_List_Free);
-
     // required_space doesn't include the size of the footer
-    if (required_space < ((ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + (ptrdiff_t)_Alignof(hdsa_Allocator_List_Footer)))
+    if (required_space < ((ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free)))
     {
         error_out->code = HDSA_ERROR_ALLOCATION_NOT_ENOUGH_MEMORY;
         HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, !node, __LINE__ - 3, "There's not enough extra space in the last_block/buffer to create a new free node.");
@@ -266,23 +238,22 @@ static bool hdsa_allocator_list_create_free_node
         return false;
     }
 
-    hdsa_Allocator_List_Footer* old_footer = (hdsa_Allocator_List_Footer*)((ptrdiff_t)*old_node + (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + (*old_node)->section_size); // This one will be reused by the new second free node done from remaining_size
+    ptrdiff_t old_size = (*old_node)->section_size;
 
-    hdsa_Allocator_List_Footer* new_footer = (hdsa_Allocator_List_Footer*)0; // Footer for soon smaller free node
-    hdsa_allocator_list_create_footer(old_node, smaller_section_size, &new_footer);
+    // Case: Create a new free node from an existing one
+    ptrdiff_t smaller_section_size = required_space - (ptrdiff_t)sizeof(hdsa_Allocator_List_Free);
     (*old_node)->section_size = smaller_section_size;
 
-    hdsa_Allocator_List_Free* second_node = (hdsa_Allocator_List_Free*)((ptrdiff_t)new_footer + (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer));
-    second_node->section_size = (ptrdiff_t)old_footer - (ptrdiff_t)second_node - (ptrdiff_t)sizeof(hdsa_Allocator_List_Free);
+    hdsa_Allocator_List_Free* second_node = (hdsa_Allocator_List_Free*)((ptrdiff_t)*old_node + (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + (*old_node)->section_size);
+    second_node->section_size = old_size - (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) - (*old_node)->section_size;
     hdsa_allocator_list_free_list_add(self, second_node);
-    old_footer->node_offset = (ptrdiff_t)old_footer - (ptrdiff_t)second_node;
 
     if (self->v_alloc.mode == HDSA_ALLOCATOR_VIRTUAL_STATIC)
     {
-        self->v_alloc.last_block->used_block += (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer);
+        self->v_alloc.last_block->used_block += (ptrdiff_t)sizeof(hdsa_Allocator_List_Free);
     }
 
-    self->used_total += (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer);
+    self->used_total += (ptrdiff_t)sizeof(hdsa_Allocator_List_Free);
 
     *node_out = second_node;
     error_out->code = HDSA_ERROR_SUCCESS;
@@ -645,9 +616,9 @@ bool hdsa_allocator_list_allocate(hdsa_Allocator_List* const self, ptrdiff_t siz
     printf("allocation_amount before: %lld\n", self->allocation_amount);
 
     // Necessary to make the creation and alignment of footers and new nodes easier
-    size = hdsa_common_round_to_multiple(size, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Footer));
+    size = hdsa_common_round_to_multiple(size, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
     printf("size after: %lld\n", size);
-    alignment = hdsa_common_round_to_multiple(alignment, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Footer));
+    alignment = hdsa_common_round_to_multiple(alignment, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
     printf("alignment after: %lld\n", alignment);
 
     // Case: There are no free nodes available, all nodes are used nodes.
@@ -713,9 +684,6 @@ bool hdsa_allocator_list_allocate(hdsa_Allocator_List* const self, ptrdiff_t siz
     required_space = size + padding;
     printf("required_space: %lld\n", required_space);
 
-    hdsa_Allocator_List_Footer* node_footer = (hdsa_Allocator_List_Footer*)((ptrdiff_t)node + (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + node->section_size);
-    node_footer->is_free =  false;
-
     // Both operands add the size of a footer, so they cancel each other
     remaining_node_space = ((ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + node->section_size) - required_space;
     printf("remaining_node_space: %lld\n", remaining_node_space);
@@ -726,6 +694,7 @@ bool hdsa_allocator_list_allocate(hdsa_Allocator_List* const self, ptrdiff_t siz
      * a new free node and add it to the free list.
      */
     hdsa_Allocator_List_Free* new_node = (hdsa_Allocator_List_Free*)0;
+    ptrdiff_t node_section_size = node->section_size;
 
     if (hdsa_allocator_list_create_free_node(self, &node, required_space, &new_node, error_out))
     {
@@ -748,7 +717,8 @@ bool hdsa_allocator_list_allocate(hdsa_Allocator_List* const self, ptrdiff_t siz
     hdsa_allocator_list_used_list_add(self, &used_node);
 
     // The usable address by the user starts right after the padding ends
-    void* result = (void*)((ptrdiff_t)node + padding);
+    // void* result = (void*)((ptrdiff_t)node + padding);
+    void* result = (void*)((ptrdiff_t)used_node + (ptrdiff_t)sizeof(hdsa_Allocator_List_Used));
 
     if (self->v_alloc.mode == HDSA_ALLOCATOR_VIRTUAL_STATIC)
     {
@@ -778,148 +748,11 @@ bool hdsa_allocator_list_allocate(hdsa_Allocator_List* const self, ptrdiff_t siz
 }
 
 /**
- * @brief It merges *free_node with the node right after in memory, not
- * (*free_node)->next.
- * @param[in] self Pointer to the Allocator_List, must not be null.
- * @param[in] free_node Pointer to the node that will be merged with
- * the node that is right after in memory. Both free_node and *free_node
- * must not be null.
- * @param[in] free_footer Pointer to the footer than belongs to *free_node.
- * Both free_footer and *free_footer must not be null.
- * @param[in] node_after Pointer to the node right after *free_node in memory.
- * Both node_after and *node_after must not be null.
- * @param[in] footer_after Pointer to the footer than belongs to *node_after.
- * Both footer_after and *footer_after must not be null.
- */
-static void hdsa_allocator_list_merge_right
-(
-    hdsa_Allocator_List* const self,
-    hdsa_Allocator_List_Free* const * const free_node,
-    hdsa_Allocator_List_Footer** const free_footer,
-    hdsa_Allocator_List_Free* const * const node_after,
-    hdsa_Allocator_List_Footer* const * const footer_after
-)
-{
-    /**
-     * If *node_address goes above the address pool inside committed_total,
-     * merging cannot be done.
-     */
-    if (self->v_alloc.mode == HDSA_ALLOCATOR_VIRTUAL_STATIC)
-    {
-        if ((ptrdiff_t)*node_after >= ((ptrdiff_t)self->v_alloc.last_block + self->v_alloc.committed_total))
-        {
-            return;
-        }
-    }
-    else
-    {
-        if ((ptrdiff_t)*node_after >= ((ptrdiff_t)self->v_alloc.buffer + self->v_alloc.committed_total))
-        {
-            return;
-        }
-    }
-
-    (*free_node)->section_size += (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer) + (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + (*node_after)->section_size;
-    (*footer_after)->node_offset = (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + (*free_node)->section_size;
-    (*free_footer)->is_free = false;
-    (*free_footer)->node_offset = 0;
-    *free_footer = *footer_after;
-
-    hdsa_Allocator_List_Free* temp_previous = (*node_after)->previous;
-    hdsa_Allocator_List_Free* temp_next = (*node_after)->next;
-
-    if (temp_previous)
-    {
-        temp_previous->next = temp_next;
-    }
-
-    if (temp_next)
-    {
-        temp_next->previous = temp_previous;
-    }
-
-    (*node_after)->next = (hdsa_Allocator_List_Free*)0;
-    (*node_after)->previous = (hdsa_Allocator_List_Free*)0;
-
-    if ((ptrdiff_t)self->head == (ptrdiff_t)node_after)
-    {
-        self->head = temp_next;
-    }
-}
-
-/**
- * @brief It merges *free_node with the node right before in memory, not
- * (*free_node)->previous.
- * @param[in] self Pointer to the Allocator_List, must not be null.
- * @param[in] free_node Pointer to the node that will be merged with
- * the node that is right before in memory. Both free_node and *free_node
- * must not be null.
- * @param[in] free_footer Pointer to the footer than belongs to *free_node.
- * Both free_footer and *free_footer must not be null.
- * @param[in] node_before Pointer to the node right before *free_node in
- * memory. Both node_before and *node_before must not be null.
- * @param[in] footer_before Pointer to the footer than belongs to *node_before.
- * Both footer_before and *footer_before must not be null.
- */
-static void hdsa_allocator_list_merge_left
-(
-    hdsa_Allocator_List* const self,
-    hdsa_Allocator_List_Free* const * const free_node,
-    hdsa_Allocator_List_Footer* const * const free_footer,
-    hdsa_Allocator_List_Free* const * const node_before,
-    hdsa_Allocator_List_Footer** const footer_before
-)
-{
-    /**
-     * If *node_address touches the Memory Block's pool, or buffer in External Mode
-     * merging cannot be done.
-     */
-    if (self->v_alloc.mode == HDSA_ALLOCATOR_VIRTUAL_STATIC)
-    {
-        if ((ptrdiff_t)*node_before < ((ptrdiff_t)self->v_alloc.last_block + (ptrdiff_t)sizeof(hdsa_Allocator_Memory_Block)))
-        {
-            return;
-        }
-    }
-    else
-    {
-        if ((ptrdiff_t)*node_before < (ptrdiff_t)self->v_alloc.buffer)
-        {
-            return;
-        }
-    }
-
-    (*node_before)->section_size = (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer) + (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + (*free_node)->section_size;
-    (*free_footer)->node_offset = (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + (*node_before)->section_size;
-    (*footer_before)->is_free = false;
-    (*footer_before)->node_offset = 0;
-    *footer_before = *free_footer;
-
-    hdsa_Allocator_List_Free* temp_previous = (*free_node)->previous;
-    hdsa_Allocator_List_Free* temp_next = (*free_node)->next;
-
-    if (temp_previous)
-    {
-        temp_previous->next = temp_next;
-    }
-
-    if (temp_next)
-    {
-        temp_next->previous = temp_previous;
-    }
-
-    (*free_node)->next = (hdsa_Allocator_List_Free*)0;
-    (*free_node)->previous = (hdsa_Allocator_List_Free*)0;
-}
-
-/**
  * @brief It tries to combine node that sits in memory right after free_node
  * with free_node (not necessarily free_node->next), and the same done with the
  * node just before free_node.
  * @param[in] self Allocator_List pointer, must not be null. If self->head
  * is null this function does nothing.
- * @param[in] previous_node Previous node to the one that will be removed.
- * It can be null as long as "delete_node" isn't.
  * @param[in] delete_node Node to remove from the free list, must not be null.
  */
 static void hdsa_allocator_list_coalescence(hdsa_Allocator_List* const self, hdsa_Allocator_List_Free* const free_node)
@@ -948,48 +781,40 @@ static void hdsa_allocator_list_coalescence(hdsa_Allocator_List* const self, hds
         return;
     }
 
-    ptrdiff_t free_node_size = (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + free_node->section_size + (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer);
+    ptrdiff_t free_node_size = (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + free_node->section_size;
+    hdsa_Allocator_List_Free* previous = free_node->previous;
+    hdsa_Allocator_List_Free* next = free_node->next;
 
-    hdsa_Allocator_List_Footer* free_footer = (hdsa_Allocator_List_Footer*)((ptrdiff_t)free_node + (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + free_node->section_size);
-
-    hdsa_Allocator_List_Free* node_after = (hdsa_Allocator_List_Free*)((ptrdiff_t)free_node + free_node_size);
-    hdsa_Allocator_List_Footer* footer_after = (hdsa_Allocator_List_Footer*)((ptrdiff_t)node_after + (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + node_after->section_size);
-
-    hdsa_Allocator_List_Footer* footer_before = (hdsa_Allocator_List_Footer*)((ptrdiff_t)free_node - (ptrdiff_t)sizeof(hdsa_Allocator_List_Footer));
-    hdsa_Allocator_List_Free* node_before = (hdsa_Allocator_List_Free*)((ptrdiff_t)footer_before - footer_before->node_offset);
-
-    /**
-     * head->previous is null, and this if statement covers the case of
-     * head being previous_node.
-     */
-    if ((ptrdiff_t)node_after == (ptrdiff_t)self->head)
+    if (next && (((ptrdiff_t)free_node + free_node_size) == (ptrdiff_t)next))
     {
-        hdsa_allocator_list_merge_right(self, &free_node, &free_footer, &self->head, &footer_after);
-    }
-    else if (((ptrdiff_t)node_after == (ptrdiff_t)previous_node) && ((ptrdiff_t)previous_node != (ptrdiff_t)self->head))
-    {
-        hdsa_allocator_list_merge_right(self, &free_node, &free_footer, &previous_node, &footer_after);
-    }
-    else if (footer_after->is_free)
-    {
-        hdsa_allocator_list_merge_right(self, &free_node, &free_footer, &node_after, &footer_after);
+        free_node->section_size += (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + next->section_size;
+
+        hdsa_Allocator_List_Free* after_next = next->next;
+        free_node->next = after_next;
+
+        if (after_next)
+        {
+            after_next->previous = free_node;
+        }
+
+        next->next = (hdsa_Allocator_List_Free*)0;
+        next->previous = (hdsa_Allocator_List_Free*)0;
     }
 
-    /**
-     * Just as before, this if statement covers the case of self-head being
-     * previous_node.
-     */
-    if ((ptrdiff_t)node_before == (ptrdiff_t)self->head)
+    if (previous && (((ptrdiff_t)previous + (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + previous->section_size) == (ptrdiff_t)free_node))
     {
-        hdsa_allocator_list_merge_left(self, &free_node, &free_footer, &self->head, &footer_before);
-    }
-    else if (((ptrdiff_t)node_before == (ptrdiff_t)previous_node) && ((ptrdiff_t)previous_node != (ptrdiff_t)self->head))
-    {
-        hdsa_allocator_list_merge_left(self, &free_node, &free_footer, &previous_node, &footer_before);
-    }
-    else if (footer_before->is_free)
-    {
-        hdsa_allocator_list_merge_left(self, &free_node, &free_footer, &node_before, &footer_before);
+        free_node->section_size += (ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + free_node->next->section_size;
+
+        hdsa_Allocator_List_Free* before_previous = free_node->previous->previous;
+        free_node->previous = previous;
+
+        if (before_previous)
+        {
+            before_previous->next = free_node;
+        }
+
+        previous->next = (hdsa_Allocator_List_Free*)0;
+        previous->previous = (hdsa_Allocator_List_Free*)0;
     }
 }
 
@@ -1002,7 +827,7 @@ static void hdsa_allocator_list_coalescence(hdsa_Allocator_List* const self, hds
  */
 void hdsa_allocator_list_deallocate(hdsa_Allocator_List* const self, const void* const ptr)
 {
-    HDSA_BASIC_ASSERT((self), "The Allocator_Stack pointer is null.\n");
+    HDSA_BASIC_ASSERT((self), "The Allocator_List pointer is null.\n");
 
     puts("------------------------------ LIST DEALLOCATION ----------------------------------\n");
 
@@ -1029,41 +854,36 @@ void hdsa_allocator_list_deallocate(hdsa_Allocator_List* const self, const void*
         return;
     }
 
-    previous_node = self->used_head;
-    used_node = self->used_head->next;
-
     // Find if ptr/used_node is really inside this allocator, and if so, where
-    if ((ptrdiff_t)previous_node != (ptrdiff_t)ptr_node)
-    {
-        while (used_node && ((ptrdiff_t)used_node == (ptrdiff_t)ptr_node))
-        {
-            previous_node = used_node;
-            used_node = used_node->next;
-        }
+    previous_node = (hdsa_Allocator_List_Used*)0;
+    used_node = self->used_head;
 
-        if (!used_node)
-        {
-            return;
-        }
-    }
-    else
+    while (used_node && ((ptrdiff_t)used_node != (ptrdiff_t)ptr_node))
     {
-        used_node = previous_node;
-        previous_node = (hdsa_Allocator_List_Used*)0;
+        previous_node = used_node;
+        used_node = used_node->next;
     }
+
+    if ((ptrdiff_t)used_node != (ptrdiff_t)ptr_node)
+    {
+        return;
+    }
+
+    ptrdiff_t used_section_size = used_node->section_size;
+    ptrdiff_t used_padding = used_node->padding;
+    hdsa_allocator_list_used_list_remove(self, &previous_node, &used_node);
 
     printf("allocation_amount before: %lld\n", self->allocation_amount);
 
     // Put the free_node in the same node ptr is
-    free_node = (hdsa_Allocator_List_Free*)((ptrdiff_t)ptr - (ptrdiff_t)used_node->padding);
-    free_node->section_size = (used_node->section_size + used_node->padding) - (ptrdiff_t)sizeof(hdsa_Allocator_List_Free);
+    free_node = (hdsa_Allocator_List_Free*)((ptrdiff_t)ptr - used_padding);
+    free_node->section_size = (used_section_size + used_padding) - (ptrdiff_t)sizeof(hdsa_Allocator_List_Free);
     free_node->next = (hdsa_Allocator_List_Free*)0;
     free_node->previous = (hdsa_Allocator_List_Free*)0;
 
-    hdsa_allocator_list_used_list_remove(self, &previous_node, &used_node);
     hdsa_allocator_list_free_list_add(self, free_node);
 
-    printf("temp_used: %p\n", (void*)used_node);
+    printf("used_node: %p\n", (void*)used_node);
     printf("free_node: %p\n", (void*)free_node);
     printf("free_node->section_size: %lld\n", free_node->section_size);
     printf("used_total before deallocation: %lld\n", self->used_total);
@@ -1221,8 +1041,8 @@ bool hdsa_allocator_list_resize
     {
         case HDSA_ALLOCATOR_VIRTUAL_EXTERNAL:
         {
-            old_size = hdsa_common_round_to_multiple(old_size, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Footer));
-            new_size = hdsa_common_round_to_multiple(new_size, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Footer));
+            old_size = hdsa_common_round_to_multiple(old_size, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
+            new_size = hdsa_common_round_to_multiple(new_size, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
 
             // If both sizes are the same nothing is done
             if (old_size == new_size)
@@ -1265,7 +1085,7 @@ bool hdsa_allocator_list_resize
                 return false;
             }
 
-            real_new_alignment = hdsa_common_round_to_multiple(new_alignment, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Footer));
+            real_new_alignment = hdsa_common_round_to_multiple(new_alignment, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
 
             hdsa_Allocator_List_Used* old_node = (hdsa_Allocator_List_Used*)0;
             hdsa_Allocator_List_Used* used_node = (hdsa_Allocator_List_Used*)0;
@@ -1324,8 +1144,8 @@ bool hdsa_allocator_list_resize
 
         case HDSA_ALLOCATOR_VIRTUAL_STATIC:
         {
-            old_size = hdsa_common_round_to_multiple(old_size, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Footer));
-            new_size = hdsa_common_round_to_multiple(new_size, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Footer));
+            old_size = hdsa_common_round_to_multiple(old_size, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
+            new_size = hdsa_common_round_to_multiple(new_size, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
 
             // If both sizes are the same nothing is done
             if (old_size == new_size)
@@ -1349,7 +1169,7 @@ bool hdsa_allocator_list_resize
                 return true;
             }
 
-            real_new_alignment = hdsa_common_round_to_multiple(new_alignment, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Footer));
+            real_new_alignment = hdsa_common_round_to_multiple(new_alignment, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
 
             if (!self->v_alloc.last_block)
             {

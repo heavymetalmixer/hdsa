@@ -157,7 +157,7 @@ int main(void)
     printf("x->a: %d\n", x->a);
     printf("x->b: %d\n\n\n", x->b);
 
-    hdsa_allocator_list_deallocate(&list, (void**)&x);
+    hdsa_allocator_list_deallocate(&list, (void*)x);
     x = (temp*)0;
 
 
@@ -244,34 +244,34 @@ int main(void)
     printf("us[1]: %d\n", us[1]);
     printf("us[2]: %d\n\n\n", us[2]);
 
-    // hdsa_allocator_stack_deallocate(&stack);
-    // hdsa_allocator_stack_deallocate(&stack);
+    hdsa_allocator_list_deallocate(&list, (void*)uc2);
+    hdsa_allocator_list_deallocate(&list, (void*)us);
 
 
 
-    unsigned char* temp_out;
+    // unsigned char* temp_out;
 
-    for (ptrdiff_t i = 0; i < (hdsa_virtual_page_size() - (ptrdiff_t)sizeof(hdsa_Allocator_Memory_Block) - (ptrdiff_t)sizeof(hdsa_Allocator_Stack_Last) - ((ptrdiff_t)sizeof(temp) * 340));  i += (ptrdiff_t)sizeof(temp))
-    {
-        if (!hdsa_allocator_list_allocate(&list, (ptrdiff_t)sizeof(temp), (ptrdiff_t)_Alignof(temp), (void**)&temp_out, &error_struct))
-        {
-            puts(error_struct.description);
-            exit(1);
-        }
+    // for (ptrdiff_t i = 0; i < (hdsa_virtual_page_size() - (ptrdiff_t)sizeof(hdsa_Allocator_Memory_Block) - (ptrdiff_t)sizeof(hdsa_Allocator_Stack_Last) - ((ptrdiff_t)sizeof(temp) * 340));  i += (ptrdiff_t)sizeof(temp))
+    // {
+    //     if (!hdsa_allocator_list_allocate(&list, (ptrdiff_t)sizeof(temp), (ptrdiff_t)_Alignof(temp), (void**)&temp_out, &error_struct))
+    //     {
+    //         puts(error_struct.description);
+    //         exit(1);
+    //     }
 
-        // printf("i: %lld\n", i);
+    //     // printf("i: %lld\n", i);
 
-        // t = (temp*)hdsa_dynamic_array_object_at(&dynarr, index_temp);
-        // printf("Temp object %lld: %d, %d\n\n\n", i + 10, t->a, t->b);
-    }
+    //     // t = (temp*)hdsa_dynamic_array_object_at(&dynarr, index_temp);
+    //     // printf("Temp object %lld: %d, %d\n\n\n", i + 10, t->a, t->b);
+    // }
 
-    // hdsa_allocator_stack_deallocate(&stack);
-    // hdsa_allocator_stack_deallocate(&stack);
-    // hdsa_allocator_stack_deallocate(&stack);
-    // hdsa_allocator_stack_give_back_memory(&stack);
+    // // hdsa_allocator_stack_deallocate(&stack);
+    // // hdsa_allocator_stack_deallocate(&stack);
+    // // hdsa_allocator_stack_deallocate(&stack);
+    // // hdsa_allocator_stack_give_back_memory(&stack);
 
-    unsigned char* temp_buff;
-    hdsa_allocator_list_resize(&list, (void*)temp_out, (ptrdiff_t)sizeof(short) * 3, (ptrdiff_t)sizeof(short) * 16, (ptrdiff_t)_Alignof(short), (void**)&temp_buff, &error_struct);
+    // unsigned char* temp_buff;
+    // hdsa_allocator_list_resize(&list, (void*)temp_out, (ptrdiff_t)sizeof(short) * 3, (ptrdiff_t)sizeof(short) * 16, (ptrdiff_t)_Alignof(short), (void**)&temp_buff, &error_struct);
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

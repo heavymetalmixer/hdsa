@@ -162,21 +162,6 @@ typedef struct hdsa_Allocator_List_Used
 } hdsa_Allocator_List_Used;
 
 /**
- * @brief Set after the section, at the end of the node. Necessary for
- * coalescence/merging of free nodes that are next to each other in memory to
- * reduce memory fragmentation (it has nothing to do with previous and next).
- *
- * "node_offset" Distance the beginning of the node to the footer.
- *
- * "is_free" true if the node is free, false if it's used.
- */
-typedef struct hdsa_Allocator_List_Footer
-{
-    ptrdiff_t node_offset;
-    bool is_free;
-} hdsa_Allocator_List_Footer;
-
-/**
  * @brief It initializes the Allocator_Free_List with an existing buffer of a
  * certain size.
  * @param[in] self Allocator_Free_List pointer, must not be null.
