@@ -53,14 +53,13 @@ typedef enum hdsa_Allocator_Placement_Policy
  * allocation it turns into a node of the "used list", node that starts
  * with padding followed by the usable memory by the user with an aligned
  * address according to the requested alignment (but it's rounded up to the
- * alignment of hdsa_Allocator_List_Footer).
+ * alignment of hdsa_Allocator_List_Free).
  *
  * A free node has a hdsa_Allocator_List_Free header at the beginning and
- * a hdsa_Allocator_List_Footer at the end. A used has a
- * hdsa_Allocator_List_Used header (most of the time not in the same address
- * as the hdsa_Allocator_List_Free header because of the padding) and a
- * hdsa_Allocator_List_Footer. Allocation sizes are also rounded up to a
- * multiple of the alignment of hdsa_Allocator_List_Footer.
+ * a "footer" at the end. A used has a hdsa_Allocator_List_Used header
+ * (most of the time not in the same address as the hdsa_Allocator_List_Free
+ * header because of the padding) and a "footer". Allocation sizes are also
+ * rounded up to a multiple of the alignment of hdsa_Allocator_List_Free.
  *
  * It has 2 modes that change the arena's behavior: External and Static.
  *
@@ -162,15 +161,23 @@ typedef struct hdsa_Allocator_List_Used
 } hdsa_Allocator_List_Used;
 
 /**
- * @brief It initializes the Allocator_Free_List with an existing buffer of a
+ * @brief It initializes the Allocator_List with an existing buffer of a
  * certain size.
- * @param[in] self Allocator_Free_List pointer, must not be null.
+ * @param[in] self Allocator_List pointer, must not be null.
  * @param[in] buff Buffer being assigned to the Allocator_Free_List. It can be
  * null but make sure to change it later on. If it is null or size is 0, all
  * the allocator's data is set to 0/null.
  * @param[in] size Size of the buffer in bytes, must be at least 0.
+ * @returns True if the first node creation succeeds, false otherwise.
  */
-void hdsa_allocator_list_init_external(hdsa_Allocator_List* const self, void* buffer, ptrdiff_t size, hdsa_Allocator_Placement_Policy policy);
+bool hdsa_allocator_list_init_external
+(
+    hdsa_Allocator_List* const self,
+    void* buffer,
+    ptrdiff_t size,
+    hdsa_Allocator_Placement_Policy policy,
+    hdsa_Error* const error_out
+);
 
 /**
  * @brief It initializes the Allocator_Free_List with sizes for reserved and
@@ -187,7 +194,8 @@ void hdsa_allocator_list_init_external(hdsa_Allocator_List* const self, void* bu
  * @param[in] committed_size Size of the usable block in bytes, must be at
  * least 0. It will be rounded to a multiple of hdsa_virtual_page_size.
  * @param[in] error_out The error struct pointer, must not be null.
- * @returns True if the first allocation inside succeeds, false otherwise.
+ * @returns True if the first allocation and first node creation succeed, false
+ * otherwise.
  */
 bool hdsa_allocator_list_init_static
 (
@@ -204,10 +212,10 @@ bool hdsa_allocator_list_init_static
  * @param[in] self Allocator_List pointer, must not be null.
  * @param[in] size Size in bytes required by the user, must be at least 1.
  * It will be rounded up to a multiple of the alignment of
- * hdsa_Allocator_List_Footer.
+ * hdsa_Allocator_List_Free.
  * @param[in] alignment Alignment in bytes required by the user, must be at
  * least 1. It will be rounded up to the alignment of
- * hdsa_Allocator_List_Footer.
+ * hdsa_Allocator_List_Free.
  * @param[out] allocation_out Output pointer for the allocation, must not be
  * null.
  * @param[in] error_out Pointer to the error struct, must not be null.
@@ -256,15 +264,15 @@ void hdsa_allocator_list_give_back_memory(hdsa_Allocator_List* const self);
  * null or even not part of the same buffer. If it's null only the new
  * allocation is done.
  * @param[in] old_size Size of the existing allocation, must not be negative.
- * It will be rounded up to a multiple of hdsa_Allocator_List_Footer's
+ * It will be rounded up to a multiple of hdsa_Allocator_List_Free's
  * alignment. If both sizes after the rounding end up being the same,
  * this function does nothing and allocation_out will point to old_memory.
  * @param[in] new_size New size for the allocation, must not be negative.
  * If it's 0 old_memory is deallocated and both old_memory and the pointer
  * allocation_out is pointing to are set to null. If it's at least 1 it will
- * be rounded up to a multiple of hdsa_Allocator_List_Footer's alignment.
+ * be rounded up to a multiple of hdsa_Allocator_List_Free's alignment.
  * @param[in] new_alignment Alignment for the new allocation or resizing, must
- * be at least 1, and it will be rounded up to hdsa_Allocator_List_Footer's
+ * be at least 1, and it will be rounded up to hdsa_Allocator_List_Free's
  * alignment.
  * @param[out] allocation_out Output pointer to pointer for the allocation,
  * must not be null.
