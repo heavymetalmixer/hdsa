@@ -217,6 +217,41 @@ void* hdsa_allocator_virtual_buffer(const hdsa_Allocator_Virtual* const self)
 }
 
 /**
+ * @brief It returns the size of the buffer in External Mode, and usable
+ * committed memory in the last block for the other 2 modes.
+ * If buffer/last block is null the function returns 0;
+ */
+ptrdiff_t hdsa_allocator_virtual_remaining_space(const hdsa_Allocator_Virtual* const self)
+{
+    if ((self->mode != HDSA_ALLOCATOR_VIRTUAL_STATIC) && (self->mode != HDSA_ALLOCATOR_VIRTUAL_DYNAMIC) && (self->mode != HDSA_ALLOCATOR_VIRTUAL_EXTERNAL))
+    {
+        return -1;
+    }
+
+    if (!self)
+    {
+        return 0;
+    }
+
+    if (self->mode == HDSA_ALLOCATOR_VIRTUAL_EXTERNAL)
+    {
+        if (!self->buffer)
+        {
+            return 0;
+        }
+
+        return self->committed_total;
+    }
+
+    if (!self->last_block)
+    {
+        return 0;
+    }
+
+    return (self->last_block->committed_block - (ptrdiff_t)sizeof(hdsa_Allocator_Memory_Block));
+}
+
+/**
  * @brief This function reserves virtual memory from the OS. Depending on the
  * Allocator_Virtual's mode the function's behavior changes:
  *
