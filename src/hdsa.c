@@ -133,7 +133,7 @@ int main(void)
     //     exit(1);
     // }
 
-    if (!hdsa_allocator_list_init_external(&list, hdsa_allocator_virtual_buffer(&vir), hdsa_allocator_virtual_remaining_space(&vir), pol, &error_struct))
+    if (!hdsa_allocator_list_init_external(&list, hdsa_allocator_virtual_buffer(&vir), hdsa_allocator_virtual_usable_space(&vir), pol, &error_struct))
     {
         puts(error_struct.description);
         exit(1);
@@ -253,36 +253,48 @@ int main(void)
     printf("us[2]: %d\n\n\n", us[2]);
 
     hdsa_allocator_list_deallocate(&list, (void*)uc2);
-    hdsa_allocator_list_deallocate(&list, (void*)us);
+    // hdsa_allocator_list_deallocate(&list, (void*)us);
 
 
 
-    temp* temp_out;
+    // temp* temp_out;
 
-    // for (ptrdiff_t i = 0; i < 1359;  i += 1)
-    for (ptrdiff_t i = 0; i < 84;  i += 1)
-    {
-        if (!hdsa_allocator_list_allocate(&list, (ptrdiff_t)sizeof(temp), (ptrdiff_t)_Alignof(temp), (void**)&temp_out, &error_struct))
-        {
-            puts(error_struct.description);
-            exit(1);
-        }
+    // // for (ptrdiff_t i = 0; i < 1359;  i += 1)
+    // for (ptrdiff_t i = 0; i < 84;  i += 1)
+    // {
+    //     if (!hdsa_allocator_list_allocate(&list, (ptrdiff_t)sizeof(temp), (ptrdiff_t)_Alignof(temp), (void**)&temp_out, &error_struct))
+    //     {
+    //         puts(error_struct.description);
+    //         exit(1);
+    //     }
 
-        // printf("i: %lld\n", i);
+    //     // printf("i: %lld\n", i);
 
-        // t = (temp*)hdsa_dynamic_array_object_at(&dynarr, index_temp);
-        // printf("Temp object %lld: %d, %d\n\n\n", i + 10, t->a, t->b);
-    }
+    //     // t = (temp*)hdsa_dynamic_array_object_at(&dynarr, index_temp);
+    //     // printf("Temp object %lld: %d, %d\n\n\n", i + 10, t->a, t->b);
+    // }
 
-    hdsa_allocator_list_reset(&list);
+    // hdsa_allocator_list_reset(&list);
 
     // hdsa_allocator_stack_deallocate(&stack);
     // hdsa_allocator_stack_deallocate(&stack);
     // hdsa_allocator_stack_deallocate(&stack);
     // hdsa_allocator_stack_give_back_memory(&stack);
 
-    // temp* temp_buff;
-    // hdsa_allocator_list_resize(&list, (void*)temp_out, (ptrdiff_t)sizeof(short) * 3, (ptrdiff_t)sizeof(short) * 16, (ptrdiff_t)_Alignof(short), (void**)&temp_buff, &error_struct);
+    printf("\nus before resizing: %p\n", (void*)us);
+
+    short* temp_buff;
+    hdsa_allocator_list_resize(&list, (void**)&us, (ptrdiff_t)sizeof(short) * 16, (ptrdiff_t)_Alignof(short), (void**)&temp_buff, &error_struct);
+
+    printf("us after resizing: %p\n", (void*)us);
+    printf("temp_buff: %p\n", (void*)temp_buff);
+    printf("Is temp_buff aligned? %s\n", ((hdsa_common_is_aligned((void*)temp_buff, (ptrdiff_t)_Alignof(short)))) ? "Yes!" :  "No!");
+    temp_buff[0] = 12;
+    temp_buff[1] = 14;
+    temp_buff[2] = 16;
+    printf("temp_buff[0]: %d\n", temp_buff[0]);
+    printf("temp_buff[1]: %d\n", temp_buff[1]);
+    printf("temp_buff[2]: %d\n\n\n", temp_buff[2]);
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

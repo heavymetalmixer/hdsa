@@ -95,15 +95,28 @@ static void hdsa_allocator_list_free_list_remove(hdsa_Allocator_List* const self
     if (previous_node == self->head)
     {
         self->head->next = next_node;
-        next_node->previous = self->head;
+
+        if (next_node)
+        {
+            next_node->previous = self->head;
+        }
+
         (*delete_node)->next = (hdsa_Allocator_List_Free*)0;
         (*delete_node)->previous = (hdsa_Allocator_List_Free*)0;
 
         return;
     }
 
-    previous_node->next = next_node;
-    next_node->previous = previous_node;
+    if (previous_node)
+    {
+        previous_node->next = next_node;
+    }
+
+    if (next_node)
+    {
+        next_node->previous = previous_node;
+    }
+
     (*delete_node)->next = (hdsa_Allocator_List_Free*)0;
     (*delete_node)->previous = (hdsa_Allocator_List_Free*)0;
 
@@ -232,7 +245,7 @@ static bool hdsa_allocator_list_create_free_node
 {
     HDSA_BASIC_ASSERT((self), "The Allocator_List pointer is null.\n");
     HDSA_BASIC_ASSERT((error_out), "The hdsa_Error pointer is null.\n");
-    HDSA_BASIC_ASSERT((required_space > 0), "required_space is 0 or negative.\n");
+    HDSA_BASIC_ASSERT((required_space >= ((ptrdiff_t)sizeof(hdsa_Allocator_List_Free) + (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free))), "required_space is too small to create a new free node.\n");
     HDSA_BASIC_ASSERT((old_node), "The Allocator_List pointer is null.\n");
     HDSA_BASIC_ASSERT((node_out), "node_out is null.\n");
 
@@ -386,7 +399,7 @@ bool hdsa_allocator_list_init_external
     {
         hdsa_Allocator_List_Free* dummy_node = (hdsa_Allocator_List_Free*)0;
 
-        if (!hdsa_allocator_list_create_free_node(self, &self->head, 1, &dummy_node, error_out))
+        if (!hdsa_allocator_list_create_free_node(self, &self->head, self->v_alloc.committed_total, &dummy_node, error_out))
         {
             return false;
         }
@@ -447,7 +460,7 @@ bool hdsa_allocator_list_init_static
         self->allocation_amount += 1;
         hdsa_Allocator_List_Free* dummy_node = (hdsa_Allocator_List_Free*)0;
 
-        if (!hdsa_allocator_list_create_free_node(self, &self->head, 1, &dummy_node, error_out))
+        if (!hdsa_allocator_list_create_free_node(self, &self->head, self->v_alloc.committed_total, &dummy_node, error_out))
         {
             return false;
         }
@@ -710,7 +723,7 @@ bool hdsa_allocator_list_allocate(hdsa_Allocator_List* const self, ptrdiff_t siz
                 self->allocation_amount = 1;
             }
 
-            if (!hdsa_allocator_list_create_free_node(self, &null_node, 1, &temp_node, error_out))
+            if (!hdsa_allocator_list_create_free_node(self, &null_node, self->v_alloc.committed_total, &temp_node, error_out))
             {
                 *allocation_out = (void*)0;
                 return false;
@@ -727,7 +740,7 @@ bool hdsa_allocator_list_allocate(hdsa_Allocator_List* const self, ptrdiff_t siz
                 return false;
             }
 
-            if (!hdsa_allocator_list_create_free_node(self, &null_node, 1, &temp_node, error_out))
+            if (!hdsa_allocator_list_create_free_node(self, &null_node, self->v_alloc.committed_total, &temp_node, error_out))
             {
                 *allocation_out = (void*)0;
                 return false;
@@ -1232,7 +1245,7 @@ void hdsa_allocator_list_reset(hdsa_Allocator_List* const self)
         {
             hdsa_Allocator_List_Free* dummy_node = (hdsa_Allocator_List_Free*)0;
             hdsa_Error dummy_error;
-            hdsa_allocator_list_create_free_node(self, &self->head, 1, &dummy_node, &dummy_error);
+            hdsa_allocator_list_create_free_node(self, &self->head, self->v_alloc.committed_total, &dummy_node, &dummy_error);
         }
 
         puts("The Allocator_List was empty or in External mode when trying to reset it. All the allocator data was set to 0 and a single free node was a assigned to self->head.\n");
@@ -1284,20 +1297,24 @@ void hdsa_allocator_list_give_back_memory(hdsa_Allocator_List* const self)
  *
  * 2) On the other hand, if it ends up being the latest allocation then only
  * resize the latest allocation, no data copying is done.
+ *
+ * Given that this function looks for the user-provided pointer to be a node
+ * inside the used list before doing anything else, it's quite slow if you
+ * wanna use it for anything that isn't reallocating the data inside
+ * old_memory in another node.
  * @param[in] self The Allocator_List pointer, must not be null.
  * @param[in] old_memory The existing allocation pointer. *old_memory can be
- * null or even not part of the same buffer. If it's null only the new
- * allocation is done.
+ * null, if so, only the new allocation is done.
  * @param[in] old_size Size of the existing allocation, must not be negative.
- * It will be rounded up to a multiple of hdsa_Allocator_List_Footer's
+ * It will be rounded up to a multiple of hdsa_Allocator_List_Free's
  * alignment. If both sizes after the rounding end up being the same,
  * this function does nothing and allocation_out will point to old_memory.
  * @param[in] new_size New size for the allocation, must not be negative.
  * If it's 0 old_memory is deallocated and both old_memory and the pointer
  * allocation_out is pointing to are set to null. If it's at least 1 it will
- * be rounded up to a multiple of hdsa_Allocator_List_Footer's alignment.
+ * be rounded up to a multiple of hdsa_Allocator_List_Free's alignment.
  * @param[in] new_alignment Alignment for the new allocation or resizing, must
- * be at least 1, and it will be rounded up to hdsa_Allocator_List_Footer's
+ * be at least 1, and it will be rounded up to hdsa_Allocator_List_Free's
  * alignment.
  * @param[out] allocation_out Output pointer to pointer for the allocation,
  * must not be null.
@@ -1316,7 +1333,6 @@ bool hdsa_allocator_list_resize
 (
     hdsa_Allocator_List* const self,
     void** const old_memory,
-    ptrdiff_t old_size,
     ptrdiff_t new_size,
     ptrdiff_t new_alignment,
     void** const allocation_out,
@@ -1328,230 +1344,109 @@ bool hdsa_allocator_list_resize
     HDSA_BASIC_ASSERT((allocation_out), "The allocation_out pointer is null.\n");
     HDSA_BASIC_ASSERT((old_memory), "The old_memory pointer is null.\n");
     HDSA_BASIC_ASSERT((self->v_alloc.committed_total > 0), "The committed_total is 0 or negative.\n");
-    HDSA_BASIC_ASSERT((old_size > -1), "The size for the existing allocation can't be negative.\n");
     HDSA_BASIC_ASSERT((new_size > -1), "The size for the resized/new allocation can't be negative.\n");
     HDSA_BASIC_ASSERT((new_alignment > 0), "The new alignment can't be negative nor 0.\n");
 
     puts("*****************   LIST RESIZING!   ******************\n");
 
     void* new_memory = (void*)0;
-    ptrdiff_t real_new_alignment = 0;
+    ptrdiff_t real_new_alignment = hdsa_common_round_to_multiple(new_alignment, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
+    new_size = hdsa_common_round_to_multiple(new_size, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
 
-    switch(self->v_alloc.mode)
+    hdsa_Allocator_List_Used* old_node = (hdsa_Allocator_List_Used*)0;
+    hdsa_Allocator_List_Used* used_node = (hdsa_Allocator_List_Used*)0;
+
+    old_node = (hdsa_Allocator_List_Used*)((ptrdiff_t)*old_memory - (ptrdiff_t)sizeof(hdsa_Allocator_List_Used));
+    used_node = self->used_head;
+
+    // Find if ptr/used_node is really inside this allocator, and if so, where
+    while (used_node && ((ptrdiff_t)used_node != (ptrdiff_t)old_node))
     {
-        case HDSA_ALLOCATOR_VIRTUAL_EXTERNAL:
+        used_node = used_node->next;
+    }
+
+    if ((ptrdiff_t)used_node != (ptrdiff_t)old_node)
+    {
+        error_out->code = HDSA_ERROR_ALLOCATION_EXISTING_NODE_NOT_FOUND;
+        HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, !self->v_alloc.buffer, __LINE__ - 3, "The Allocator_List couldn't find a used node that matches the pointer *old_memory.");
+
+        *allocation_out = (void*)0;
+        return false;
+    }
+
+    ptrdiff_t old_size = hdsa_common_round_to_multiple(old_node->section_size, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
+
+    // If both sizes are the same nothing is done
+    if (old_size == new_size)
+    {
+        error_out->code = HDSA_ERROR_SUCCESS;
+        *allocation_out = *old_memory;
+
+        return true;
+    }
+
+    /**
+     * The new size being 0 means only deallocation, and if succeeds
+     * *old_memory and *allocation_out are set to null.
+     */
+    if (new_size == 0)
+    {
+        hdsa_allocator_list_deallocate(self, old_memory);
+        *allocation_out = *old_memory;
+        error_out->code = HDSA_ERROR_SUCCESS;
+
+        return true;
+    }
+
+    if (self->v_alloc.mode == HDSA_ALLOCATOR_VIRTUAL_STATIC)
+    {
+        if (!self->v_alloc.last_block)
         {
-            old_size = hdsa_common_round_to_multiple(old_size, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
-            new_size = hdsa_common_round_to_multiple(new_size, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
+            ptrdiff_t maximum_size =  new_size + real_new_alignment - 1;
 
-            // If both sizes are the same nothing is done
-            if (old_size == new_size)
+            if (!hdsa_allocator_list_init_static(self, maximum_size * 4, maximum_size, self->policy, error_out))
             {
-                error_out->code = HDSA_ERROR_SUCCESS;
-                *allocation_out = *old_memory;
-
-                return true;
-            }
-
-            /**
-             * The new size being 0 means only deallocation, and if succeeds
-             * *old_memory and *allocation_out are set to null.
-             */
-            if (new_size == 0)
-            {
-                hdsa_allocator_list_deallocate(self, old_memory);
-                *allocation_out = *old_memory;
-                error_out->code = HDSA_ERROR_SUCCESS;
-
-                return true;
-            }
-
-            if (!self->v_alloc.buffer)
-            {
-                self->allocated_offset = 0;
-                self->allocation_amount = 0;
-                self->head = (hdsa_Allocator_List_Free*)0;
-                self->used_head = (hdsa_Allocator_List_Used*)0;
-                self->used_total = 0;
-
-                self->v_alloc.reserved_total = 0;
-                self->v_alloc.committed_total = 0;
-                self->v_alloc.last_block = (hdsa_Allocator_Memory_Block*)0;
-
-                error_out->code = HDSA_ERROR_ALLOCATION_NULL_BUFFER;
-                HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, !self->v_alloc.buffer, __LINE__ - 13, "While in External mode the Allocator_List has a null buffer when trying to resize an allocation.");
-
                 *allocation_out = (void*)0;
                 return false;
             }
-
-            real_new_alignment = hdsa_common_round_to_multiple(new_alignment, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
-
-            hdsa_Allocator_List_Used* old_node = (hdsa_Allocator_List_Used*)0;
-            hdsa_Allocator_List_Used* used_node = (hdsa_Allocator_List_Used*)0;
-            hdsa_Allocator_List_Used* previous_node = (hdsa_Allocator_List_Used*)0;
-
-            old_node = (hdsa_Allocator_List_Used*)((ptrdiff_t)*old_memory - (ptrdiff_t)sizeof(hdsa_Allocator_List_Used));
-            previous_node = self->used_head;
-            used_node = self->used_head->next;
-
-            // Find if ptr/used_node is really inside this allocator, and if so, where
-            if ((ptrdiff_t)previous_node != (ptrdiff_t)old_node)
-            {
-                while (used_node && ((ptrdiff_t)used_node == (ptrdiff_t)old_node))
-                {
-                    previous_node = used_node;
-                    used_node = used_node->next;
-                }
-
-                if (!used_node)
-                {
-                    error_out->code = HDSA_ERROR_ALLOCATION_EXISTING_NODE_NOT_FOUND;
-                    HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, !self->v_alloc.buffer, __LINE__ - 3, "The Allocator_List couldn't find a used node that matches the pointer *old_memory.");
-
-                    *allocation_out = (void*)0;
-                    return false;
-                }
-            }
-            else
-            {
-                used_node = previous_node;
-                previous_node = (hdsa_Allocator_List_Used*)0;
-            }
-
-            if (!hdsa_allocator_list_allocate(self, new_size, real_new_alignment, (void**)&new_memory, error_out))
-            {
-                *allocation_out = new_memory;
-                return false;
-            }
-
-            /**
-             * If old_memory isn't null and old_size is at least 1 copy the data from
-             * old_memory to the new allocation in the stack.
-             */
-            if (*old_memory && (old_size > 0))
-            {
-                // Choose the smallest of the 2 sizes and copy the data from old_memory to new_memory
-                ptrdiff_t copy_size = (old_size < new_size) ? old_size : new_size;
-                memcpy(new_memory, *old_memory, (size_t)copy_size);
-            }
-
-            *allocation_out = new_memory;
-            error_out->code = HDSA_ERROR_SUCCESS;
-
-            return true;
-        } break;
-
-        case HDSA_ALLOCATOR_VIRTUAL_STATIC:
+        }
+    }
+    else
+    {
+        if (!self->v_alloc.buffer)
         {
-            old_size = hdsa_common_round_to_multiple(old_size, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
-            new_size = hdsa_common_round_to_multiple(new_size, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
+            self->allocated_offset = 0;
+            self->allocation_amount = 0;
+            self->head = (hdsa_Allocator_List_Free*)0;
+            self->used_head = (hdsa_Allocator_List_Used*)0;
+            self->used_total = 0;
 
-            // If both sizes are the same nothing is done
-            if (old_size == new_size)
-            {
-                error_out->code = HDSA_ERROR_SUCCESS;
-                *allocation_out = *old_memory;
+            self->v_alloc.reserved_total = 0;
+            self->v_alloc.committed_total = 0;
+            self->v_alloc.last_block = (hdsa_Allocator_Memory_Block*)0;
 
-                return true;
-            }
+            error_out->code = HDSA_ERROR_ALLOCATION_NULL_BUFFER;
+            HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, !self->v_alloc.buffer, __LINE__ - 13, "While in External mode the Allocator_List has a null buffer when trying to resize an allocation.");
 
-            /**
-             * The new size being 0 means only deallocation, and that results
-             * in the latest allocation being deallocated.
-             */
-            if (new_size == 0)
-            {
-                hdsa_allocator_list_deallocate(self, old_memory);
-                *allocation_out = *old_memory;
-                error_out->code = HDSA_ERROR_SUCCESS;
-
-                return true;
-            }
-
-            real_new_alignment = hdsa_common_round_to_multiple(new_alignment, (ptrdiff_t)_Alignof(hdsa_Allocator_List_Free));
-
-            if (!self->v_alloc.last_block)
-            {
-                ptrdiff_t maximum_size =  new_size + real_new_alignment - 1;
-
-                if (!hdsa_allocator_list_init_static(self, maximum_size * 4, maximum_size, self->policy, error_out))
-                {
-                    *allocation_out = (void*)0;
-                    return false;
-                }
-            }
-
-            hdsa_Allocator_List_Used* old_node = (hdsa_Allocator_List_Used*)0;
-            hdsa_Allocator_List_Used* used_node = (hdsa_Allocator_List_Used*)0;
-            hdsa_Allocator_List_Used* previous_node = (hdsa_Allocator_List_Used*)0;
-
-            old_node = (hdsa_Allocator_List_Used*)((ptrdiff_t)*old_memory - (ptrdiff_t)sizeof(hdsa_Allocator_List_Used));
-            previous_node = self->used_head;
-            used_node = self->used_head->next;
-
-            // Find if ptr/used_node is really inside this allocator, and if so, where
-            if ((ptrdiff_t)previous_node != (ptrdiff_t)old_node)
-            {
-                while (used_node && ((ptrdiff_t)used_node == (ptrdiff_t)old_node))
-                {
-                    previous_node = used_node;
-                    used_node = used_node->next;
-                }
-
-                if (!used_node)
-                {
-                    error_out->code = HDSA_ERROR_ALLOCATION_EXISTING_NODE_NOT_FOUND;
-                    HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, !self->v_alloc.buffer, __LINE__ - 3, "The Allocator_List couldn't find a used node that matches the pointer *old_memory.");
-
-                    *allocation_out = (void*)0;
-                    return false;
-                }
-            }
-            else
-            {
-                used_node = previous_node;
-                previous_node = (hdsa_Allocator_List_Used*)0;
-            }
-
-            if (!hdsa_allocator_list_allocate(self, new_size, real_new_alignment, (void**)&new_memory, error_out))
-            {
-                *allocation_out = new_memory;
-                return false;
-            }
-
-            /**
-             * If old_memory isn't null and old_size is at least 1 copy the data from
-             * old_memory to the new allocation in the stack.
-             */
-            if (*old_memory && (old_size > 0))
-            {
-                // Choose the smallest of the 2 sizes and copy the data from old_memory to new_memory
-                ptrdiff_t copy_size = (old_size < new_size) ? old_size : new_size;
-                memcpy(new_memory, *old_memory, (size_t)copy_size);
-            }
-
-            *allocation_out = new_memory;
-            error_out->code = HDSA_ERROR_SUCCESS;
-
-            return true;
-        } break;
-
-        default:
-        {
-            error_out->code = HDSA_ERROR_ALLOCATION_WRONG_MODE;
-            HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, Wrong mode integer, __LINE__ - 3, "The Allocator_List mode isn't External nor Static.");
             *allocation_out = (void*)0;
-
             return false;
-        } break;
+        }
     }
 
-    error_out->code = HDSA_ERROR_ALLOCATION_WRONG_MODE;
-    HDSA_ERROR_FORMATED_STRING(error_out->description, error_out->code, Wrong mode integer, __LINE__ - 3, "The Allocator_List mode isn't External nor Static.");
-    *allocation_out = (void*)0;
+    if (!hdsa_allocator_list_allocate(self, new_size, real_new_alignment, (void**)&new_memory, error_out))
+    {
+        *allocation_out = new_memory;
+        return false;
+    }
 
-    return false;
+    // Choose the smallest of the 2 sizes and copy the data from old_memory to new_memory
+    ptrdiff_t copy_size = (old_size < new_size) ? old_size : new_size;
+    memcpy(new_memory, *old_memory, (size_t)copy_size);
+
+    *allocation_out = new_memory;
+    error_out->code = HDSA_ERROR_SUCCESS;
+
+    return true;
 }
 
 /**
@@ -1610,7 +1505,7 @@ bool hdsa_allocator_list_generic_function
 
         case HDSA_ALLOCATION_TYPE_RESIZE:
         {
-            return hdsa_allocator_list_resize((hdsa_Allocator_List* const)allocator, old_allocation, old_size, new_size, new_alignment, allocation_out, error_out);
+            return hdsa_allocator_list_resize((hdsa_Allocator_List* const)allocator, old_allocation, new_size, new_alignment, allocation_out, error_out);
         } break;
 
         default:

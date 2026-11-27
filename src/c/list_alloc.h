@@ -259,10 +259,14 @@ void hdsa_allocator_list_give_back_memory(hdsa_Allocator_List* const self);
  *
  * 2) On the other hand, if it ends up being the latest allocation then only
  * resize the latest allocation, no data copying is done.
+ *
+ * Given that this function looks for the user-provided pointer to be a node
+ * inside the used list before doing anything else, it's quite slow if you
+ * wanna use it for anything that isn't reallocating the data inside
+ * old_memory in another node.
  * @param[in] self The Allocator_List pointer, must not be null.
  * @param[in] old_memory The existing allocation pointer. *old_memory can be
- * null or even not part of the same buffer. If it's null only the new
- * allocation is done.
+ * null, if so, only the new allocation is done.
  * @param[in] old_size Size of the existing allocation, must not be negative.
  * It will be rounded up to a multiple of hdsa_Allocator_List_Free's
  * alignment. If both sizes after the rounding end up being the same,
@@ -291,7 +295,6 @@ bool hdsa_allocator_list_resize
 (
     hdsa_Allocator_List* const self,
     void** const old_memory,
-    ptrdiff_t old_size,
     ptrdiff_t new_size,
     ptrdiff_t new_alignment,
     void** const allocation_out,

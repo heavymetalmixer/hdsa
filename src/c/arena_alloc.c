@@ -118,7 +118,7 @@ bool hdsa_allocator_arena_init_dynamic(hdsa_Allocator_Arena* const self, ptrdiff
 
 /**
  * @param[in] self Allocator_Arena pointer, must not be null.
- * @return Amount of bytes yet to be allocated in the buffer. For Static and
+ * @returns Amount of bytes yet to be allocated in the buffer. For Static and
  * Dynamic mode it's the remaining space in the committed memory of the last
  * block. If the buffer/last_block is null 0 is returned.
  */
@@ -132,6 +132,23 @@ ptrdiff_t hdsa_allocator_arena_remaining_storage(const hdsa_Allocator_Arena* con
     }
 
     return (self->v_alloc.buffer) ? self->v_alloc.committed_total - self->current_offset : 0;
+}
+
+/**
+ * @param[in] self Allocator_Arena pointer, must not be null.
+ * @returns A pointer to the latest allocation, which can be null if
+ * buffer/last_block is null.
+ */
+void* hdsa_allocator_arena_last_allocation(const hdsa_Allocator_Arena* const self)
+{
+    HDSA_BASIC_ASSERT((self), "The Allocator_Arena pointer is null.\n");
+
+    if ((self->v_alloc.mode == HDSA_ALLOCATOR_VIRTUAL_STATIC) || (self->v_alloc.mode == HDSA_ALLOCATOR_VIRTUAL_DYNAMIC))
+    {
+        return (void*)((ptrdiff_t)self->v_alloc.last_block + self->previous_offset);
+    }
+
+    return (void*)((ptrdiff_t)self->v_alloc.buffer + self->previous_offset);
 }
 
 /**
@@ -161,8 +178,6 @@ bool hdsa_allocator_arena_allocate(hdsa_Allocator_Arena* const self, ptrdiff_t s
     HDSA_BASIC_ASSERT((size > 0), "Allocation sizes of 0 or negative aren't allowed.\n");
     HDSA_BASIC_ASSERT((alignment > 0), "Allocation alignments of 0 or negative aren't allowed.\n");
 
-    puts("###############   ALLOCATION!   ################\n");
-
     ptrdiff_t buffer_address = 0, current_address = 0, aligned_address = 0, aligned_offset = 0, padding = 0;
     alignment = (hdsa_common_is_power_of_two(alignment)) ? alignment : hdsa_common_round_pow_two(alignment);
 
@@ -181,18 +196,9 @@ bool hdsa_allocator_arena_allocate(hdsa_Allocator_Arena* const self, ptrdiff_t s
                 return false;
             }
 
-            printf("allocation size: %lld\n", size);
-            printf("allocation_amount before: %lld\n", self->allocation_amount);
-            printf("remaining_space before: %lld\n", self->v_alloc.committed_total - self->current_offset);
-            printf("previous_offset before: %lld\n", self->previous_offset);
-            printf("current_offset before: %lld\n", self->current_offset);
-
             buffer_address = (ptrdiff_t)self->v_alloc.buffer;
             current_address = buffer_address + self->current_offset;
             aligned_address = hdsa_common_align_forward(current_address, alignment);
-
-            printf("current_address: %lld\n", current_address);
-            printf("aligned_address: %lld\n", aligned_address);
 
             /**
              * Subtract away the buffer address number so aligned_offset becomes an actual
@@ -200,7 +206,6 @@ bool hdsa_allocator_arena_allocate(hdsa_Allocator_Arena* const self, ptrdiff_t s
              * huge address number aligned_address has.
              */
             aligned_offset = aligned_address - buffer_address;
-            printf("aligned offset: %lld\n", aligned_offset);
             padding = aligned_offset -self->current_offset;
 
             if ((aligned_offset + size) > self->v_alloc.committed_total)
@@ -216,11 +221,6 @@ bool hdsa_allocator_arena_allocate(hdsa_Allocator_Arena* const self, ptrdiff_t s
             self->current_offset = aligned_offset + size;
             self->allocation_amount += 1;
             self->used_total += (padding + size);
-
-            printf("previous_offset after: %lld\n", self->previous_offset);
-            printf("current_offset after: %lld\n", self->current_offset);
-            printf("remaining_space after: %lld\n", self->v_alloc.committed_total - self->current_offset);
-            printf("allocation_amount after: %lld\n\n\n", self->allocation_amount);
 
             *allocation_out = (void*)aligned_address;
             error_out->code = HDSA_ERROR_SUCCESS;
@@ -256,18 +256,9 @@ bool hdsa_allocator_arena_allocate(hdsa_Allocator_Arena* const self, ptrdiff_t s
                 }
             }
 
-            printf("allocation size: %lld\n", size);
-            printf("allocation_amount before: %lld\n", self->allocation_amount);
-            printf("remaining_space before: %lld\n", self->v_alloc.last_block->committed_block - self->current_offset);
-            printf("previous_offset before: %lld\n", self->previous_offset);
-            printf("current_offset before: %lld\n", self->current_offset);
-
             buffer_address = (ptrdiff_t)self->v_alloc.last_block;
             current_address = buffer_address + self->current_offset;
             aligned_address = hdsa_common_align_forward(current_address, alignment);
-
-            printf("current_address: %lld\n", current_address);
-            printf("aligned_address: %lld\n", aligned_address);
 
             /**
              * Subtract away the buffer address number so aligned_offset becomes an actual
@@ -275,8 +266,6 @@ bool hdsa_allocator_arena_allocate(hdsa_Allocator_Arena* const self, ptrdiff_t s
              * huge address number aligned_address has.
              */
             aligned_offset = aligned_address - buffer_address;
-            printf("aligned offset: %lld\n", aligned_offset);
-
             padding = aligned_offset -self->current_offset;
 
             if ((aligned_offset + size) > self->v_alloc.last_block->committed_block)
@@ -294,8 +283,6 @@ bool hdsa_allocator_arena_allocate(hdsa_Allocator_Arena* const self, ptrdiff_t s
                         return false;
                     }
 
-                    puts("Allocating inside a new memory block.\n");
-
                     self->used_total += self->v_alloc.last_block->used_block;
                     self->previous_offset = self->v_alloc.last_block->used_block;
                     self->current_offset = self->v_alloc.last_block->used_block;
@@ -311,8 +298,6 @@ bool hdsa_allocator_arena_allocate(hdsa_Allocator_Arena* const self, ptrdiff_t s
                      * huge address number aligned_address has.
                      */
                     aligned_offset = aligned_address - buffer_address;
-                    printf("aligned offset: %lld\n", aligned_offset);
-
                     padding = aligned_offset -self->current_offset;
                 }
             }
@@ -325,11 +310,6 @@ bool hdsa_allocator_arena_allocate(hdsa_Allocator_Arena* const self, ptrdiff_t s
 
             *allocation_out = (void*)aligned_address;
             error_out->code = HDSA_ERROR_SUCCESS;
-
-            printf("previous_offset after: %lld\n", self->previous_offset);
-            printf("current_offset after: %lld\n", self->current_offset);
-            printf("remaining_space after: %lld\n", self->v_alloc.committed_total - self->current_offset);
-            printf("allocation_amount after: %lld\n\n\n", self->allocation_amount);
 
             return true;
         } break;
@@ -373,8 +353,6 @@ void hdsa_allocator_arena_reset(hdsa_Allocator_Arena* const self)
         self->used_total = 0;
         self->allocation_amount = 0;
 
-        puts("The Allocator_Arena was empty or in External mode when trying to reset it. All the allocator data was set to 0.\n");
-
         return;
     }
 
@@ -384,8 +362,6 @@ void hdsa_allocator_arena_reset(hdsa_Allocator_Arena* const self)
 
     self->used_total = (ptrdiff_t)sizeof(hdsa_Allocator_Memory_Block);
     self->allocation_amount = 1;
-
-    puts("The Allocator_Arena has been reset!\n");
 }
 
 /**
@@ -405,8 +381,6 @@ void hdsa_allocator_arena_give_back_memory(hdsa_Allocator_Arena* const self)
     self->current_offset = 0;
     self->allocation_amount = 0;
     self->used_total = 0;
-
-    puts("All the memory in the Allocator_Arena was given back to the OS or user.\n");
 }
 
 /**
@@ -462,8 +436,6 @@ bool hdsa_allocator_arena_resize
     HDSA_BASIC_ASSERT((old_size > -1), "The size for the existing allocation can't be negative.\n");
     HDSA_BASIC_ASSERT((new_size > -1), "The size for the resized/new allocation can't be negative.\n");
     HDSA_BASIC_ASSERT((new_alignment > 0), "The new alignment can't be negative nor 0.\n");
-
-    puts("===================   REALLOCATION!   ==================\n");
 
     void* new_memory = (void*)0;
     ptrdiff_t real_new_alignment = 0, previous_address = 0, buffer_address = 0, end_address = 0;
@@ -564,7 +536,6 @@ bool hdsa_allocator_arena_resize
             self->current_offset = self->previous_offset + new_size;
             self->used_total += (self->current_offset - self->previous_offset); // Adding the new allocation's size to used_total
 
-            printf("Resizing the latest allocation. current_offset is now: %lld\n", self->current_offset);
             *allocation_out = *old_memory;
             error_out->code = HDSA_ERROR_SUCCESS;
 
@@ -668,7 +639,6 @@ bool hdsa_allocator_arena_resize
             self->used_total += (self->current_offset - self->previous_offset); // Adding the new allocation's size to used_total
             self->v_alloc.last_block->used_block += (self->current_offset - self->previous_offset);
 
-            printf("Resizing the latest allocation. current_offset is now: %lld\n", self->current_offset);
             *allocation_out = *old_memory;
             error_out->code = HDSA_ERROR_SUCCESS;
 
@@ -787,8 +757,6 @@ void hdsa_allocator_temp_arena_init(hdsa_Allocator_Temp_Arena* const self, hdsa_
     self->cur_offset = self->arena->current_offset;
     self->al_amount = self->arena->allocation_amount;
     self->u_total = self->arena->used_total;
-
-    printf("The TempArena pre_offset and cur_offset are: %lld, %lld\n", self->pre_offset, self->cur_offset);
 }
 
 /**

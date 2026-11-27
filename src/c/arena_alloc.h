@@ -129,11 +129,18 @@ bool hdsa_allocator_arena_init_dynamic(hdsa_Allocator_Arena* const self, ptrdiff
 
 /**
  * @param[in] self Allocator_Arena pointer, must not be null.
- * @return Amount of bytes yet to be allocated in the buffer. For Static and
+ * @returns Amount of bytes yet to be allocated in the buffer. For Static and
  * Dynamic mode it's the remaining space in the committed memory of the last
  * block. If the buffer/last_block is null 0 is returned.
  */
 ptrdiff_t hdsa_allocator_arena_remaining_storage(const hdsa_Allocator_Arena* const self);
+
+/**
+ * @param[in] self Allocator_Arena pointer, must not be null.
+ * @returns A pointer to the latest allocation, which can be null if
+ * buffer/last_block is null.
+ */
+void* hdsa_allocator_arena_last_allocation(const hdsa_Allocator_Arena* const self);
 
 /**
  * @brief It allocates a certain portion of memory according to a size provided

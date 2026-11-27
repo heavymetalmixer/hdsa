@@ -151,6 +151,23 @@ ptrdiff_t hdsa_allocator_stack_remaining_storage(const hdsa_Allocator_Stack* con
 }
 
 /**
+ * @param[in] self Allocator_Stack pointer, must not be null.
+ * @returns A pointer to the latest allocation, which can be null if
+ * buffer/last_block is null.
+ */
+void* hdsa_allocator_stack_last_allocation(const hdsa_Allocator_Stack* const self)
+{
+    HDSA_BASIC_ASSERT((self), "The Allocator_Stack pointer is null.\n");
+
+    if ((self->v_alloc.mode == HDSA_ALLOCATOR_VIRTUAL_STATIC) || (self->v_alloc.mode == HDSA_ALLOCATOR_VIRTUAL_DYNAMIC))
+    {
+        return (void*)((ptrdiff_t)self->v_alloc.last_block + self->start_offset);
+    }
+
+    return (void*)((ptrdiff_t)self->v_alloc.buffer + self->start_offset);
+}
+
+/**
  * @brief It allocates a certain portion of memory according to a size provided
  * by the user. The buffer to back this memory depends on the mode "v_alloc" is
  * set to.
@@ -180,8 +197,6 @@ bool hdsa_allocator_stack_allocate(hdsa_Allocator_Stack* const self, ptrdiff_t s
     HDSA_BASIC_ASSERT((size > 0), "Allocation sizes of 0 or negative aren't allowed.\n");
     HDSA_BASIC_ASSERT((alignment > 0), "Allocation alignments of 0 or negative aren't allowed.\n");
 
-    puts("###############  STACK ALLOCATION!   ################\n");
-
     ptrdiff_t buffer_address = 0, current_address = 0, next_address = 0, padding = 0;
     hdsa_Allocator_Stack_Header* header = (hdsa_Allocator_Stack_Header*)0;
     alignment = (hdsa_common_is_power_of_two(alignment)) ? alignment : hdsa_common_round_pow_two(alignment);
@@ -199,18 +214,9 @@ bool hdsa_allocator_stack_allocate(hdsa_Allocator_Stack* const self, ptrdiff_t s
                 return false;
             }
 
-            printf("allocation size: %lld\n", size);
-            printf("allocation alignment: %lld\n", alignment);
-            printf("allocation_amount before: %lld\n", self->allocation_amount);
-            printf("remaining_space before: %lld\n", self->v_alloc.committed_total - self->current_offset);
-            printf("start_offset before: %lld\n", self->start_offset);
-            printf("current_offset before: %lld\n", self->current_offset);
-
             buffer_address = (ptrdiff_t)self->v_alloc.buffer;
             current_address = buffer_address + self->current_offset;
             padding = hdsa_common_padding_with_header(current_address, (ptrdiff_t)sizeof(hdsa_Allocator_Stack_Header), (ptrdiff_t)alignment);
-
-            printf("padding from the previous allocation: %lld\n", padding);
 
             if ((self->current_offset + padding + size) > self->v_alloc.committed_total)
             {
@@ -226,22 +232,10 @@ bool hdsa_allocator_stack_allocate(hdsa_Allocator_Stack* const self, ptrdiff_t s
             header->padding = padding;
             header->start_offset = self->start_offset; // Store the previous start_offset in the header
 
-            printf("current_adress: %lld\n", current_address);
-            printf("next_adress: %lld\n", next_address);
-            printf("next_offset: %lld\n", (next_address - buffer_address));
-            printf("header_offset: %lld\n", (ptrdiff_t)header - buffer_address);
-            printf("header->start_offset: %lld\n", header->start_offset);
-            printf("header->padding: %lld\n", header->padding);
-
             self->start_offset = next_address - buffer_address;
             self->current_offset = self->start_offset + size;
             self->allocation_amount += 1;
             self->used_total += (padding + size);
-
-            printf("start_offset after: %lld\n", self->start_offset);
-            printf("current_offset after: %lld\n", self->current_offset);
-            printf("remaining_space after: %lld\n", self->v_alloc.committed_total - self->current_offset);
-            printf("allocation_amount after: %lld\n\n\n", self->allocation_amount);
 
             *allocation_out = (void*)next_address;
             error_out->code = HDSA_ERROR_SUCCESS;
@@ -277,20 +271,9 @@ bool hdsa_allocator_stack_allocate(hdsa_Allocator_Stack* const self, ptrdiff_t s
 
             hdsa_Allocator_Stack_Last* last_alloc = (hdsa_Allocator_Stack_Last*)((ptrdiff_t)self->v_alloc.last_block + (ptrdiff_t)sizeof(hdsa_Allocator_Memory_Block));
 
-            printf("allocation size: %lld\n", size);
-            printf("allocation alignment: %lld\n", alignment);
-            printf("allocation_amount before: %lld\n", self->allocation_amount);
-            printf("remaining_space before: %lld\n", self->v_alloc.committed_total - self->current_offset);
-            printf("start_offset before: %lld\n", self->start_offset);
-            printf("current_offset before: %lld\n", self->current_offset);
-            printf("Current block's last alloc offset before: %lld\n", last_alloc->offset);
-            printf("Current block's last alloc size before: %lld\n\n", last_alloc->size);
-
             buffer_address = (ptrdiff_t)self->v_alloc.last_block;
             current_address = buffer_address + self->current_offset;
             padding = hdsa_common_padding_with_header(current_address, (ptrdiff_t)sizeof(hdsa_Allocator_Stack_Header), (ptrdiff_t)alignment);
-
-            printf("padding from the previous allocation: %lld\n", padding);
 
             if ((self->current_offset + padding + size) > self->v_alloc.last_block->committed_block)
             {
@@ -307,13 +290,6 @@ bool hdsa_allocator_stack_allocate(hdsa_Allocator_Stack* const self, ptrdiff_t s
                         return false;
                     }
 
-                    puts("Allocating inside a new memory block.\n");
-                    printf("allocation size: %lld\n", size);
-                    printf("allocation_amount before: %lld\n", self->allocation_amount);
-                    printf("remaining_space before: %lld\n", self->v_alloc.committed_total - self->current_offset);
-                    printf("start_offset before: %lld\n", self->start_offset);
-                    printf("current_offset before: %lld\n", self->current_offset);
-
                     last_alloc = (hdsa_Allocator_Stack_Last*)((ptrdiff_t)self->v_alloc.last_block + (ptrdiff_t)sizeof(hdsa_Allocator_Memory_Block));
                     last_alloc->offset = 0;
                     last_alloc->size = 0;
@@ -327,8 +303,6 @@ bool hdsa_allocator_stack_allocate(hdsa_Allocator_Stack* const self, ptrdiff_t s
                     buffer_address = (ptrdiff_t)self->v_alloc.last_block; // Given that the block is the actual buffer, that's the address to give to start_address
                     current_address = buffer_address + self->current_offset;
                     padding = hdsa_common_padding_with_header(current_address, (ptrdiff_t)sizeof(hdsa_Allocator_Stack_Header), (ptrdiff_t)alignment);
-
-                    printf("padding from the previous allocation: %lld\n", padding);
                 }
             }
 
@@ -336,13 +310,6 @@ bool hdsa_allocator_stack_allocate(hdsa_Allocator_Stack* const self, ptrdiff_t s
             header = (hdsa_Allocator_Stack_Header*)(next_address - (ptrdiff_t)sizeof(hdsa_Allocator_Stack_Header));
             header->padding = padding;
             header->start_offset = self->start_offset; // Store the previous start_offset in the header
-
-            printf("current_adress: %lld\n", current_address);
-            printf("next_adress: %lld\n", next_address);
-            printf("next_offset: %lld\n", (next_address - buffer_address));
-            printf("header_offset: %lld\n", (ptrdiff_t)header - buffer_address);
-            printf("header->start_offset: %lld\n", header->start_offset);
-            printf("header->padding: %lld\n", header->padding);
 
             self->start_offset = next_address - buffer_address;
             self->current_offset = self->start_offset + size;
@@ -352,13 +319,6 @@ bool hdsa_allocator_stack_allocate(hdsa_Allocator_Stack* const self, ptrdiff_t s
 
             last_alloc->offset = self->start_offset;
             last_alloc->size = self->current_offset - self->start_offset;
-
-            printf("start_offset after: %lld\n", self->start_offset);
-            printf("current_offset after: %lld\n", self->current_offset);
-            printf("remaining_space after: %lld\n", self->v_alloc.committed_total - self->current_offset);
-            printf("allocation_amount after: %lld\n", self->allocation_amount);
-            printf("Current block's last alloc offset before: %lld\n", last_alloc->offset);
-            printf("Current block's last alloc size before: %lld\n\n\n", last_alloc->size);
 
             *allocation_out = (void*)next_address;
             error_out->code = HDSA_ERROR_SUCCESS;
@@ -393,8 +353,6 @@ void hdsa_allocator_stack_deallocate(hdsa_Allocator_Stack* const self)
 {
     HDSA_BASIC_ASSERT((self), "The Allocator_Stack pointer is null.\n");
 
-    puts("----------------   STACK DEALLOCATION!   ------------------\n");
-
     ptrdiff_t buffer_address = 0, start_address = 0, temp_prev_offset = 0;
     hdsa_Allocator_Stack_Header* header = (hdsa_Allocator_Stack_Header*)0;
     hdsa_Allocator_Stack_Last* last_alloc = (hdsa_Allocator_Stack_Last*)0;
@@ -411,26 +369,13 @@ void hdsa_allocator_stack_deallocate(hdsa_Allocator_Stack* const self)
             buffer_address = (ptrdiff_t)self->v_alloc.buffer;
             start_address = (ptrdiff_t)self->start_offset + buffer_address;
 
-            printf("allocation_amount before: %lld\n", self->allocation_amount);
-            printf("start_offset and current_offset before allocation: %lld, %lld\n", self->start_offset, self->current_offset);
-            printf("start_address: %lld\n\n", start_address);
-
             header = (hdsa_Allocator_Stack_Header*)(start_address - (ptrdiff_t)sizeof(hdsa_Allocator_Stack_Header));
             temp_prev_offset = self->start_offset - header->padding;
-
-            printf("header offset %lld\n", ((ptrdiff_t)header - buffer_address));
-            printf("header: %lld\n", (ptrdiff_t)header);
-            printf("header->padding: %lld\n", header->padding);
-            printf("header->start_offset: %lld\n", header->start_offset);
 
             self->used_total -= (self->current_offset - self->start_offset) + header->padding;
             self->current_offset = temp_prev_offset;
             self->start_offset = header->start_offset;
             self->allocation_amount -= 1;
-
-            printf("start_offset and current_offset after allocation: %lld, %lld\n", self->start_offset, self->current_offset);
-            printf("allocation_amount after: %lld\n", self->allocation_amount);
-            printf("remaining space: %lld\n\n\n", (self->v_alloc.committed_total - self->current_offset));
         } break;
 
         case HDSA_ALLOCATOR_VIRTUAL_STATIC:
@@ -453,8 +398,6 @@ void hdsa_allocator_stack_deallocate(hdsa_Allocator_Stack* const self)
 
                 if (!self->v_alloc.last_block)
                 {
-                    printf("The Allocator_Stack just deallocated its only block.\n");
-
                     return;
                 }
 
@@ -467,19 +410,8 @@ void hdsa_allocator_stack_deallocate(hdsa_Allocator_Stack* const self)
             buffer_address = (ptrdiff_t)self->v_alloc.last_block;
             start_address = (ptrdiff_t)self->start_offset + buffer_address;
 
-            printf("allocation_amount before: %lld\n", self->allocation_amount);
-            printf("start_offset and current_offset before: %lld, %lld\n", self->start_offset, self->current_offset);
-            printf("start_address: %lld\n", start_address);
-            printf("Current block's last alloc offset before: %lld\n", last_alloc->offset);
-            printf("Current block's last alloc size before: %lld\n\n", last_alloc->size);
-
             header = (hdsa_Allocator_Stack_Header*)(start_address - (ptrdiff_t)sizeof(hdsa_Allocator_Stack_Header));
             temp_prev_offset = self->start_offset - header->padding;
-
-            printf("header offset %lld\n", ((ptrdiff_t)header - buffer_address));
-            printf("header: %lld\n", (ptrdiff_t)header);
-            printf("header->padding: %lld\n", header->padding);
-            printf("header->start_offset: %lld\n", header->start_offset);
 
             self->used_total -= (self->current_offset - self->start_offset) + header->padding;
             self->v_alloc.last_block->used_block -= (self->current_offset - self->start_offset) + header->padding;
@@ -489,12 +421,6 @@ void hdsa_allocator_stack_deallocate(hdsa_Allocator_Stack* const self)
             self->allocation_amount -= 1;
             last_alloc->offset = (self->start_offset != ((ptrdiff_t)sizeof(hdsa_Allocator_Memory_Block) + (ptrdiff_t)sizeof(hdsa_Allocator_Stack_Last))) ? self->start_offset : 0;
             last_alloc->size = (self->current_offset != ((ptrdiff_t)sizeof(hdsa_Allocator_Memory_Block) + (ptrdiff_t)sizeof(hdsa_Allocator_Stack_Last))) ? (self->current_offset - self->start_offset) : 0;
-
-            printf("start_offset and current_offset after: %lld, %lld\n", self->start_offset, self->current_offset);
-            printf("allocation_amount after: %lld\n", self->allocation_amount);
-            printf("remaining space: %lld\n", (self->v_alloc.committed_total - self->current_offset));
-            printf("Current block's last alloc offset after: %lld\n", last_alloc->offset);
-            printf("Current block's last alloc size after: %lld\n\n\n", last_alloc->size);
         } break;
 
         default:
@@ -528,8 +454,6 @@ void hdsa_allocator_stack_reset(hdsa_Allocator_Stack* const self)
         self->used_total = 0;
         self->allocation_amount = 0;
 
-        puts("The Allocator_Stack was empty or in External mode when trying to reset it. All the allocator data was set to 0.\n");
-
         return;
     }
 
@@ -542,8 +466,6 @@ void hdsa_allocator_stack_reset(hdsa_Allocator_Stack* const self)
     self->current_offset = self->v_alloc.last_block->used_block;
     self->used_total = self->v_alloc.last_block->used_block;
     self->allocation_amount = 2;
-
-    puts("The Allocator_Stack has been reset!\n");
 }
 
 /**
@@ -563,8 +485,6 @@ void hdsa_allocator_stack_give_back_memory(hdsa_Allocator_Stack* const self)
     self->current_offset = 0;
     self->allocation_amount = 0;
     self->used_total = 0;
-
-    puts("All the memory in the Allocator_Stack was given back to the OS or user.\n");
 }
 
 /**
@@ -620,8 +540,6 @@ bool hdsa_allocator_stack_resize
     HDSA_BASIC_ASSERT((old_size > -1), "The size for the existing allocation can't be negative.\n");
     HDSA_BASIC_ASSERT((new_size > -1), "The size for the resized/new allocation can't be negative.\n");
     HDSA_BASIC_ASSERT((new_alignment > 0), "The new alignment can't be negative nor 0.\n");
-
-    puts("*****************   STACK RESIZING!   ******************\n");
 
     void* new_memory = (void*)0;
     ptrdiff_t real_new_alignment = 0, start_address = 0, buffer_address = 0, end_address = 0;
@@ -724,7 +642,6 @@ bool hdsa_allocator_stack_resize
             self->current_offset = self->start_offset + new_size;
             self->used_total += (self->current_offset - self->start_offset); // Adding the new allocation's size to used_total
 
-            printf("Resizing the latest allocation. current_offset is now: %lld\n", self->current_offset);
             *allocation_out = *old_memory;
             error_out->code = HDSA_ERROR_SUCCESS;
 
@@ -831,7 +748,6 @@ bool hdsa_allocator_stack_resize
             self->used_total += (self->current_offset - self->start_offset); // Adding the new allocation's size to used_total
             self->v_alloc.last_block->used_block += (self->current_offset - self->start_offset);
 
-            printf("Resizing the latest allocation. current_offset is now: %lld\n", self->current_offset);
             *allocation_out = *old_memory;
             error_out->code = HDSA_ERROR_SUCCESS;
 

@@ -217,11 +217,12 @@ void* hdsa_allocator_virtual_buffer(const hdsa_Allocator_Virtual* const self)
 }
 
 /**
- * @brief It returns the size of the buffer in External Mode, and usable
+ * @param[in] self Pointer to the Allocator_Virtual, must not be null.
+ * @returns The size of the buffer in External Mode, and usable
  * committed memory in the last block for the other 2 modes.
  * If buffer/last block is null the function returns 0;
  */
-ptrdiff_t hdsa_allocator_virtual_remaining_space(const hdsa_Allocator_Virtual* const self)
+ptrdiff_t hdsa_allocator_virtual_usable_space(const hdsa_Allocator_Virtual* const self)
 {
     if ((self->mode != HDSA_ALLOCATOR_VIRTUAL_STATIC) && (self->mode != HDSA_ALLOCATOR_VIRTUAL_DYNAMIC) && (self->mode != HDSA_ALLOCATOR_VIRTUAL_EXTERNAL))
     {
@@ -289,8 +290,6 @@ bool hdsa_allocator_virtual_reserve(hdsa_Allocator_Virtual* const self, ptrdiff_
         return false;
     }
 
-    puts("###############   RESERVATION!   ################\n");
-
     if (!self->last_block)
     {
         self->buffer = (unsigned char*)0;
@@ -319,8 +318,6 @@ bool hdsa_allocator_virtual_reserve(hdsa_Allocator_Virtual* const self, ptrdiff_
     {
         real_reserve_size = hdsa_common_round_to_multiple(real_commit_size, hdsa_virtual_granularity_size());
     }
-
-    printf("hdsa_Allocator_Virtual real reserve size: %lld\n", real_reserve_size);
 
     /**
      * From this point until the end of the allocation self->buffer will be used as a
@@ -399,9 +396,6 @@ bool hdsa_allocator_virtual_reserve(hdsa_Allocator_Virtual* const self, ptrdiff_
     *allocation_out = (void*)((ptrdiff_t)new_block + (ptrdiff_t)sizeof(hdsa_Allocator_Memory_Block));
     error_out->code = HDSA_ERROR_SUCCESS;
 
-    printf("hdsa_Allocator_Virtual new memory block's reserved size: %lld\n", new_block->reserved_block);
-    printf("hdsa_Allocator_Virtual new memory block's commited size: %lld\n\n", new_block->committed_block);
-
     return true;
 }
 
@@ -452,8 +446,6 @@ bool hdsa_allocator_virtual_commit(hdsa_Allocator_Virtual* const self, ptrdiff_t
 
         return false;
     }
-
-    puts("###############   COMMITTING!   ################\n");
 
     HDSA_BASIC_ASSERT((self->last_block), "Trying to commit where there's not a single memory block in the allocator (Dynamic Mode) isn't possible.\n");
     HDSA_BASIC_ASSERT((self->last_block->reserved_block >= hdsa_virtual_granularity_size()), "Trying to commit (Dynamic Mode) when there's no reserved memory isn't possible.\n");
@@ -514,9 +506,6 @@ bool hdsa_allocator_virtual_commit(hdsa_Allocator_Virtual* const self, ptrdiff_t
     *allocation_out = next_address;
     error_out->code = HDSA_ERROR_SUCCESS;
 
-    printf("hdsa_Allocator_Virtual current memory block's reserved size: %lld\n", self->last_block->reserved_block);
-    printf("hdsa_Allocator_Virtual current memory block's commited size: %lld\n\n", self->last_block->committed_block);
-
     return true;
 }
 
@@ -563,8 +552,6 @@ bool hdsa_allocator_virtual_allocate(hdsa_Allocator_Virtual* const self, ptrdiff
     HDSA_BASIC_ASSERT((reserved_size > -1), "reserve_size is smaller than 0.\n");
     HDSA_BASIC_ASSERT((committed_size > -1), "reserve_size is smaller than 0.\n");
 
-    puts("###############   ALLOCATION!   ################\n");
-
     if (!self->last_block)
     {
         self->buffer = (unsigned char*)0;
@@ -593,8 +580,6 @@ bool hdsa_allocator_virtual_allocate(hdsa_Allocator_Virtual* const self, ptrdiff
         {
             real_reserve_size = hdsa_common_round_to_multiple(real_commit_size, hdsa_virtual_granularity_size());
         }
-
-        printf("hdsa_Allocator_Virtual real reserve size: %lld\n", real_reserve_size);
 
         // OS selection for the virtual memory allocation function to reserve blocks.
     #if defined(_WIN32) || defined(_WIN64)
@@ -669,9 +654,6 @@ bool hdsa_allocator_virtual_allocate(hdsa_Allocator_Virtual* const self, ptrdiff
         *allocation_out = (void*)((ptrdiff_t)new_block + (ptrdiff_t)sizeof(hdsa_Allocator_Memory_Block));
         error_out->code = HDSA_ERROR_SUCCESS;
 
-        printf("hdsa_Allocator_Virtual new memory block's reserved size: %lld\n", new_block->reserved_block);
-        printf("hdsa_Allocator_Virtual new memory block's commited size: %lld\n\n", new_block->committed_block);
-
         return true;
     }
 
@@ -736,9 +718,6 @@ bool hdsa_allocator_virtual_allocate(hdsa_Allocator_Virtual* const self, ptrdiff
     *allocation_out = next_address;
     error_out->code = HDSA_ERROR_SUCCESS;
 
-    printf("hdsa_Allocator_Virtual current memory block's reserved size: %lld\n", self->last_block->reserved_block);
-    printf("hdsa_Allocator_Virtual current memory block's commited size: %lld\n\n", self->last_block->committed_block);
-
     return true;
 }
 
@@ -772,8 +751,6 @@ void hdsa_allocator_virtual_deallocate(hdsa_Allocator_Virtual* const self)
 
         return;
     }
-
-    printf("----------------   VIRTUAL DEALLOCATION!   ------------------\n");
 
     hdsa_Allocator_Memory_Block* temp = (hdsa_Allocator_Memory_Block*)0;
 
@@ -863,7 +840,6 @@ void hdsa_allocator_virtual_reset(hdsa_Allocator_Virtual* const self)
 void hdsa_allocator_virtual_give_back_memory(hdsa_Allocator_Virtual* const self)
 {
     HDSA_BASIC_ASSERT((self), "The hdsa_Allocator_Virtual pointer is null.\n");
-    puts("&&&&&&&&&&&&&&&&   DEALLOCATION!   &&&&&&&&&&&&&&&&&&\n");
 
     if ((self->mode != HDSA_ALLOCATOR_VIRTUAL_STATIC) && (self->mode != HDSA_ALLOCATOR_VIRTUAL_DYNAMIC) && (self->mode != HDSA_ALLOCATOR_VIRTUAL_EXTERNAL))
     {
@@ -877,9 +853,6 @@ void hdsa_allocator_virtual_give_back_memory(hdsa_Allocator_Virtual* const self)
     self->reserved_total = 0;
     self->committed_total = 0;
     self->last_block = (hdsa_Allocator_Memory_Block*)0;
-
-    printf("buffer after: %p\n", (void*)self->buffer);
-    printf("reserved_total after: %lld\n", self->reserved_total);
 }
 
 /**
@@ -922,8 +895,6 @@ bool hdsa_allocator_virtual_resize(hdsa_Allocator_Virtual* const self, ptrdiff_t
     HDSA_BASIC_ASSERT((allocation_out), "The allocation_out pointer is null.\n");
     HDSA_BASIC_ASSERT((self->reserved_total > -1), "The Allocator_Virtual reserved_total is negative.\n");
     HDSA_BASIC_ASSERT((new_size > -1), "The size of the old allocation is negative.\n");
-
-    puts("===================   REALLOCATION!   ==================\n");
 
     ptrdiff_t real_committed_size = hdsa_common_round_to_multiple(new_size + (ptrdiff_t)sizeof(hdsa_Allocator_Memory_Block), hdsa_virtual_page_size());
 

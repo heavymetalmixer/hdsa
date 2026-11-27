@@ -181,6 +181,13 @@ bool hdsa_allocator_stack_init_dynamic(hdsa_Allocator_Stack* const self, ptrdiff
 ptrdiff_t hdsa_allocator_stack_remaining_storage(const hdsa_Allocator_Stack* const self);
 
 /**
+ * @param[in] self Allocator_Stack pointer, must not be null.
+ * @returns A pointer to the latest allocation, which can be null if
+ * buffer/last_block is null.
+ */
+void* hdsa_allocator_stack_last_allocation(const hdsa_Allocator_Stack* const self);
+
+/**
  * @brief It allocates a certain portion of memory according to a size provided
  * by the user. The buffer to back this memory depends on the mode "v_alloc" is
  * set to.
